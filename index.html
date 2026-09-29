@@ -433,7 +433,8 @@
   }
 
   // ---------- Timers ----------
-  function randomize() { metrics.forEach(function (m) { m[1] = Math.floor(Math.random() * 101); }); if (scr === "menu") { if (metrics[4][1] < 10) beep(200, 200, "sawtooth"); draw(); } }
+  function randomize() { metrics.forEach(function (m) { m[1] = Math.floor(Math.random() * 101); }); if (scr === "menu") { //if (metrics[4][1] < 10) beep(200, 200, "sawtooth");
+    draw(); } }
   setInterval(randomize, 5000);
   setInterval(function () { if (scr === "menu") { nezStep(); draw(); } }, 1000);
   setInterval(function () { if (scr === "logs") { addLog(); draw(); } }, 900);
