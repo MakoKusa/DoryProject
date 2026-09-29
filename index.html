@@ -180,22 +180,22 @@
     "W|Les Junimos font grève dans le condensateur.", "I|Les poules de la machine n'ont pas été nourries.",
     "I|Krobus repéré dans les égouts du continuum.", "W|Pierre ferme à 17h. Le voyage temporel aussi.",
     "E|Joja Corp tente de racheter la machine. Refusé.", "E|Cuisine en feu ! Oignons non coupés. (Overcooked)",
-    "I|Menu 100% végétarien validé. Tofu grillé OK.", "I|Main de poker : quinte flush rose. Bluff suspect.",
+    "I|Menu 100% végétarien validé. Tofu grillé OK.",
     "I|Hello Kitty détectée secteur 7. Nœud rose intact.", "W|Nezuko a mordillé un câble. Il était rose.",
     "I|Récolte de panais terminée. Le futur est prometteur.", "W|Pelican Town : le bus est toujours en panne.",
-    "I|Sushimeter bloqué sur MIAM.", "E|ALL IN sur un sushi saumon-avocat.", "I|Spitz nain en surchauffe : mignon > 9000.",
+    "I|Sushimeter bloqué sur MIAM.", "I|Spitz nain en surchauffe : mignon > 9000.",
     "I|Pêche temporelle : 1 anguille, 2 sushis.", "W|Pas assez de rose dans l'interface. Ajout de rose.",
     "I|Pause promenade de Nezuko validée.", "W|Quelqu'un a mangé le dernier maki. Enquête ouverte.",
     "I|Nezuko : 10/10 cœurs. Maximum atteint.",
-    "I|Recette de sushi végétarien ajoutée : avocat-concombre.", "W|Le rose sature. Impossible de rajouter du rose. Rajout.", "E|Nezuko a repéré un écureuil. Poursuite engagée.",
-    "I|Barbe à papa rose : la meilleure des barbes à papa.", "W|Le poulet de Stardew s'est échappé de la machine.", "I|Ticket de poker : paire de Hello Kitty.",
+    "W|Le rose sature. Impossible de rajouter du rose. Rajout.", "E|Nezuko a repéré un écureuil. Poursuite engagée.",
+    "I|Barbe à papa rose : la meilleure des barbes à papa.", "W|Le poulet de Stardew s'est échappé de la machine.",
     "E|Overcooked : la soupe déborde. Personne n'a de seau.", "I|Le Spitz nain refuse d'entrer dans le vaisseau : sieste.", "W|Prise de rose détectée dans le condensateur.",
     "I|Le poisson de la Rivière valide le voyage temporel.", "W|Les Junimos demandent des sushis. Pas de tofu.", "I|Gaufre virtuelle en préparation. Pas de gluten (juste rose).",
     "E|Le Sushimeter a dépassé le seuil de la faim.", "I|Recherche de Nezuko : elle est sur le canapé.", "W|Sushi au thon détecté. Alerte végétarienne, rejeté.",
     "I|Mise à jour Stardew : +1 poule, +1 fromage.", "I|Diagnostic : besoin urgent de câlins pour Nezuko.", "W|Panne de barbe à papa au 3e sous-sol.",
     "I|Mine niveau 120 explorée. Aucune trace de sushi.", "I|Livraison de kebab végétarien à minuit : validée.", "W|Personne n'a vu le dernier gâteau rose.",
     "E|Junimo en surchauffe : trop de fruits à ramasser.", "I|Hello Kitty a validé la commande de noeuds roses.", "I|La grotte est prête. Nezuko a pris le canapé.",
-    "W|Poker : Dora bluffe, Dory devine, personne ne gagne.", "I|Concert détecté à proximité. Bouchons d'oreilles conseillés.", "I|Baignade à la mer : eau à 18°C, sushi à 100%.",
+    "I|Concert détecté à proximité. Bouchons d'oreilles conseillés.", "I|Baignade à la mer : eau à 18°C, sushi à 100%.",
     "E|Les cils de Dory sont collés. Cause inconnue.", "I|Sursaut de Dora enregistré. Cause : Dory.", "W|Pizza en approche. Fromage : oui. Viande : non.",
     "I|Nanimois : rituel mensuel confirmé.", "I|Feu d'artifice détecté. Nezuko sous le canapé.", "W|Le rose n'est pas une couleur, c'est un mode de vie."];
   var SC = [
@@ -204,7 +204,6 @@
     ["Vous ramenez une barbe à papa de 2026.", "Elle fond dans le continuum espace-temps.", "Le passé devient collant et rose.", "Personne ne sait plus quelle année on est.", "PARADOXE : la barbe à papa existe avant d'être faite."],
     ["Vous plantez un panais en 2025 (Stardew Valley).", "Un Junimo l'a déjà récolté en 2026.", "Le panais est dans l'inventaire avant d'être planté.", "Pierre refuse de le racheter.", "PARADOXE : la récolte précède la graine."],
     ["Vous cuisinez dans le passé (Overcooked).", "La cuisine prend feu avant l'allumette.", "Le tofu est cuit avant d'être posé.", "Le chef hurle dans deux époques.", "PARADOXE : l'incendie a lieu, mais rien ne brûle."],
-    ["Vous annoncez une quinte flush rose au poker.", "DORY avait déjà couché sa main hier.", "Le pot appartient à un futur qui n'a pas eu lieu.", "Hello Kitty valide les jetons.", "PARADOXE : vous gagnez contre vous-même."],
     ["Vous offrez un Hello Kitty à DORY en 2025.", "Elle l'avait déjà dans sa collection en 2026.", "Le doublon se téléporte dans une boucle de rose.", "La boucle demande un sushi en échange.", "PARADOXE : un Hello Kitty est offert avant d'être acheté."],
     ["Vous amenez Nezuko au restaurant de sushis du passé.", "Le serveur ne trouve aucun sushi végétarien.", "Nezuko mange le menu. Le menu n'a jamais existé.", "Le restaurant est fermé depuis demain.", "PARADOXE : la faim précède le repas."]];
   var BOOT = ["REWIND MACHINE BIOS v0.1 (C) DORA", "", "TEST MEMOIRE ................ 640K OK", "CHARGEMENT DU CONDENSATEUR DE FLUX ... OK",
@@ -266,8 +265,7 @@
   function dbBox() {
     var L = [{ t: "" }];
     DB.forEach(function (x, i) {
-      var n = PH[x[0]] ? PH[x[0]].length : 0;
-      L.push({ t: (i === dbi ? "> " : "  ") + x[0] + " : " + x[1] + (n ? "  [" + n + " PHOTO" + (n > 1 ? "S" : "") + "]" : ""), sel: i === dbi });
+      L.push({ t: (i === dbi ? "> " : "  ") + x[0] + " : " + x[1], sel: i === dbi });
     });
     L.push({ t: "" }, { t: "HAUT/BAS : PARCOURIR   ENTREE : DEFINIR COMME DATE CIBLE   ECHAP : RETOUR" }, { t: "" }, { t: "> " + (st || "SELECTIONNEZ UNE DATE_") });
     var out = box("SAUT TEMPOREL", L, W);
@@ -509,7 +507,9 @@
   }
 
   // ---------- Nezuko : encart + entretien ----------
-  var NZ = { h: 70, j: 70, c: 70, sl: false };
+  // Jauges de depart aleatoires a chaque chargement : entre 30 et 90 %, independantes
+  var startGauge = function () { return 30 + (Math.random() * 61 | 0); };
+  var NZ = { h: startGauge(), j: startGauge(), c: startGauge(), sl: false };
   var cmode = "menu", ci = 0, cmsg = "", cfx = 0;
   var ball = { p: 0, d: 1, n: 0, pts: 0, last: "", done: false };
   var BALLS = 8, TR = 31, ZC = 15;
@@ -595,10 +595,11 @@
       { t: ball.done ? "ENTREE : RETOUR A L'ENTRETIEN" : "ECHAP : ABANDONNER (aucun gain)" }];
     return box("LANCER LA BALLE A NEZUKO", L, W);
   }
-  // Les jauges baissent de 1 par minute (a l'arret si Nezuko dort)
+  // Chaque minute, chaque jauge baisse independamment d'un entier aleatoire entre 1 et 5 (a l'arret si Nezuko dort)
+  function drop() { return 1 + (Math.random() * 5 | 0); }
   setInterval(function () {
     if (NZ.sl) return;
-    NZ.h = cl(NZ.h - 1); NZ.j = cl(NZ.j - 1); NZ.c = cl(NZ.c - 1);
+    NZ.h = cl(NZ.h - drop()); NZ.j = cl(NZ.j - drop()); NZ.c = cl(NZ.c - drop());
     if (scr === "care" && cmode === "menu") draw();
   }, 60000);
   // Nouveau statut aleatoire toutes les 6 secondes
@@ -659,10 +660,11 @@
     scr = "jump"; jdone = false; sq = false; var tk = ++run; setBare();
     var d = target.slice(0, 10), dp = d.split("/"), dt = new Date(+dp[2], +dp[1] - 1, +dp[0]), now = new Date(); now.setHours(0, 0, 0, 0);
     if (!(await typeLines(["INITIALISATION DU SAUT TEMPOREL", "DESTINATION : " + target, "CHARGEMENT DU CONDENSATEUR DE FLUX ... OK", ""], 450, tk))) return;
-    for (var i = 5; i >= 1; i--) {
+    // Compte a rebours : 3 secondes
+    for (var i = 3; i >= 1; i--) {
       if (tk !== run) return;
-      $("main").innerHTML = P("\n\n\n          SAUT DANS " + i + "...\n\n          [" + bar((6 - i) * 20, 20) + "]");
-      crt.classList.add("shake"); beep(200 + (6 - i) * 120, 300); await sleep(900);
+      $("main").innerHTML = P("\n\n\n          SAUT DANS " + i + "...\n\n          [" + bar((4 - i) / 3 * 100, 20) + "]");
+      crt.classList.add("shake"); beep(200 + (4 - i) * 200, 300); await sleep(1000);
     }
     crt.classList.remove("shake");
     for (var j = 0; j < 6; j++) { if (tk !== run) return; crt.classList.toggle("inv", j % 2 === 0); beep(1500 - j * 150, 60, "sawtooth"); await sleep(160); }
@@ -699,8 +701,6 @@
   setInterval(randomize, 5000);
   setInterval(function () { if (scr === "menu") { nezStep(); draw(); } else if (scr === "care") nezStep(); }, 1000);
   setInterval(function () { if (scr === "logs") { addLog(); draw(); } }, 900);
-  // Precharge des photos (pour l'indicateur texte dans la liste des dates)
-  DB.forEach(function (x) { findPhotos(x[0]).then(function () { if (scr === "db") draw(); }); });
   draw();
 })();
 </script>
