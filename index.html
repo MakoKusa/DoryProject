@@ -22,10 +22,6 @@
   .photos figure { margin: 0; border: 2px solid #fff; padding: 6px; max-width: min(360px, 88vw); }
   .photos img { display: block; max-width: 100%; max-height: 300px; cursor: zoom-in; filter: contrast(1.05) brightness(.92) saturate(.9); }
   .photos figcaption { margin-top: 6px; font-size: 14px; }
-  .photos.thumbs { gap: 12px; margin-top: 12px; }
-  .photos.thumbs figure { max-width: 200px; padding: 4px; }
-  .photos.thumbs img { max-height: 110px; }
-  .photos.thumbs figcaption { font-size: 12px; margin-top: 4px; }
   #lb { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.95); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: zoom-out; padding: 12px; box-sizing: border-box; }
   #lb img { max-width: 92vw; max-height: 80vh; border: 2px solid #fff; padding: 6px; background: #000; }
   #lb .lbcap { font-size: 14px; text-align: center; }
@@ -96,10 +92,11 @@
   // ---------- Etat ----------
   var DEF = "15/04/2025 - 20:00:00", target = DEF;
   var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false;
-  var f = [], nf = 0, dbi = 0, dbq = false, dbyes = true, logs = [], pl = [], pp = 0;
-  var IT = [["1. SAUT TEMPOREL", "jump"], ["2. BASE DE DONNEES TEMPORELLE", "db"], ["3. NAVIGATION LIBRE", "nav"], ["4. LOGS SYSTEME", "logs"],
-    ["5. SIMULATION DE PARADOXE", "para"], ["6. STATISTIQUES", "stats"], ["7. MINI JEUX", "mini"], ["8. D.O.R.Y PROTOCOL", "proto"],
-    ["9. NE PAS UTILISER", "pw"], ["0. ETEINDRE", "shut"]];
+  // sq : prompt "saut temporel maintenant ?" (ecrans db et nav), syes : reponse selectionnee
+  var f = [], nf = 0, dbi = 0, sq = false, syes = true, logs = [], pl = [], pp = 0;
+  var IT = [["1. SAUT TEMPOREL", "db"], ["2. NAVIGATION LIBRE", "nav"], ["3. LOGS SYSTEME", "logs"],
+    ["4. SIMULATION DE PARADOXE", "para"], ["5. STATISTIQUES", "stats"], ["6. MINI JEUX", "mini"], ["7. D.O.R.Y PROTOCOL", "proto"],
+    ["8. NE PAS UTILISER", "pw"], ["0. ETEINDRE", "shut"]];
   var metrics = [["PUISSANCE", 20], ["STABILITE", 80], ["CAUSALITE", 30], ["PARADOXE", 100], ["SUSHIMETER", 30]];
   var DB = [["15/04/2025", "Premiers échanges avec DORY"], ["17/10/2025", "Reprise de contact avec DORY"],
     ["12/03/2026", "Concert de l'Attaque des Titans"], ["26/03/2026", "Premier Naniwa"], ["16/04/2026", "Premier Nanimois"],
@@ -121,6 +118,7 @@
 
   // ---------- Photos souvenirs ----------
   // Convention : dossier "photos/" a cote de index.html, fichiers AAAA-MM-JJ_1.jpg, _2, _3 (jpg, jpeg, png ou webp).
+  // Les photos ne s'affichent qu'a l'arrivee d'un saut temporel a la date correspondante.
   // Legendes optionnelles : ajouter par exemple  "15/04/2025": ["Legende photo 1", "Legende photo 2"]
   var CAP = {
   };
@@ -140,15 +138,15 @@
     }
     PH[d] = out; return out;
   }
-  function photosBlock(d, thumbs) {
-    return '<div class="photos' + (thumbs ? " thumbs" : "") + '" id="photos" data-d="' + d + '"></div>';
+  function photosBlock(d) {
+    return '<div class="photos" id="photos" data-d="' + d + '"></div>';
   }
-  async function showPhotos(d, tk, quiet) {
+  async function showPhotos(d, tk) {
     var urls = await findPhotos(d);
     if (tk !== run) return;
     var el = $("photos");
     if (!el || el.getAttribute("data-d") !== d || el.hasChildNodes()) return;
-    if (!urls.length) { if (!quiet) el.textContent = "[ ARCHIVES PHOTO : AUCUN SOUVENIR NUMERISE POUR CETTE DATE ]"; return; }
+    if (!urls.length) { el.textContent = "[ ARCHIVES PHOTO : AUCUN SOUVENIR NUMERISE POUR CETTE DATE ]"; return; }
     urls.forEach(function (u, i) {
       var fig = document.createElement("figure"), img = document.createElement("img"), cap = document.createElement("figcaption");
       img.src = u; img.alt = "Souvenir du " + d; img.title = "Cliquer pour agrandir";
@@ -156,7 +154,7 @@
       cap.textContent = "PHOTO " + (i + 1) + "/" + urls.length + (CAP[d] && CAP[d][i] ? " - " + CAP[d][i] : "");
       fig.appendChild(img); fig.appendChild(cap); el.appendChild(fig);
     });
-    if (!quiet) beep(1100, 80);
+    beep(1100, 80);
   }
   // Visionneuse plein ecran
   var lb = null;
@@ -213,7 +211,7 @@
     "CALIBRAGE DU SUSHIMETER ..... OK", "RECHERCHE DE NEZUKO ......... TROUVEE (ELLE VEUT SORTIR)", "VERIFICATION DU ROSE ........ SUFFISANT", "", "CHARGEMENT DU MENU PRINCIPAL..."];
   var SHUT = ["ARRET DE LA REWIND MACHINE MoP 3000 PRO MAX...", "", "Sauvegarde des lignes temporelles ...... OK", "Refroidissement du condensateur de flux  OK",
     "Nezuko prévenue de l'extinction ........ (elle s'en fiche)", "Sushis restants : 0   Barbe à papa restante : 0", "", "A BIENTOT, DORY.", "N'oublie pas la promenade de Nezuko."];
-  var PROTO = "Le D.O.R.Y PROJECT vise à construire une machine à remonter dans le temps nommée la Rewind Machine MoP 3000 Pro Max afin de ne pas reproduire les erreurs du passé et modifier le futur.\n\nLe D.O.R.Y PROTOCOL vise à remonter le temps à la date clé du 15/04/2025, date à laquelle Dory et Dora se sont échangés leurs premiers messages. Le but est de modifier le passé afin de réécrire un futur dans lequel Dory et Dora vivent leur meilleure vie.\n\nLa machine peut cependant être utilisée pour voyager à d'autres dates dont celles listées dans la BASE DE DONNEES TEMPORELLE.\n\nATTENTION : l'usage de cette machine peut produire une rupture du continuum espace-temps et créer un paradoxe temporel. La section SIMULATION DE PARADOXE est un outil permettant de s'en prémunir (sans garantie).";
+  var PROTO = "Le D.O.R.Y PROJECT vise à construire une machine à remonter dans le temps nommée la Rewind Machine MoP 3000 Pro Max afin de ne pas reproduire les erreurs du passé et modifier le futur.\n\nLe D.O.R.Y PROTOCOL vise à remonter le temps à la date clé du 15/04/2025, date à laquelle Dory et Dora se sont échangés leurs premiers messages. Le but est de modifier le passé afin de réécrire un futur dans lequel Dory et Dora vivent leur meilleure vie.\n\nLa machine peut cependant être utilisée pour voyager à d'autres dates dont celles listées dans la section SAUT TEMPOREL.\n\nATTENTION : l'usage de cette machine peut produire une rupture du continuum espace-temps et créer un paradoxe temporel. La section SIMULATION DE PARADOXE est un outil permettant de s'en prémunir (sans garantie).";
 
   // ---------- Rendu ----------
   function setBare() { crt.classList.toggle("bare", ["menu", "nav", "logs", "db", "para", "proto", "stats", "pw", "game", "mini", "care"].indexOf(scr) < 0); }
@@ -235,14 +233,25 @@
     var now = p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear() + " - " + p2(d.getHours()) + ":" + p2(d.getMinutes()) + ":" + p2(d.getSeconds());
     return box("HORLOGE TEMPORELLE", [{ t: "" }, { t: "DATE ACTUELLE :" }, { t: "  " + now }, { t: "" }, { t: "DATE CIBLE DU VOYAGE :" }, { t: "  " + target }, { t: "" }], 42);
   }
+  // Prompt commun (Saut temporel et Navigation libre)
+  function jumpPrompt() {
+    var yes = "[ OUI ]", no = "[ NON ]";
+    return box("CONFIRMATION DE SAUT", [
+      { t: "" }, { t: "DATE CIBLE : " + target }, { t: "" },
+      { t: "Souhaitez vous réaliser un saut temporel maintenant ?" }, { t: "" },
+      { t: "      " + yes + "        " + no,
+        h: "      " + (syes ? '<span class="sel">' + yes + "</span>" : yes) + "        " + (syes ? no : '<span class="sel">' + no + "</span>") },
+      { t: "" }, { t: "FLECHES : CHOISIR   ENTREE : VALIDER   O : OUI   N : NON" }], 62);
+  }
   var seps = ["/", "/", " - ", ":", ":", ""], mx = [31, 12, 2999, 23, 59, 59], mn = [1, 1, 1000, 0, 0, 0];
   function fv(i) { return String(f[i]).padStart(i === 2 ? 4 : 2, "0"); }
   function navBox() {
     var t = "", h = "";
     for (var i = 0; i < 6; i++) { t += "[" + fv(i) + "]" + seps[i]; h += "[" + (i === nf ? '<span class="sel">' + fv(i) + "</span>" : fv(i)) + "]" + seps[i]; }
-    return box("NAVIGATION LIBRE", [{ t: "" }, { t: "DATE CIBLE ACTUELLE : " + target }, { t: "" }, { t: "NOUVELLE DATE CIBLE (JJ/MM/AAAA - hh:mm:ss) :" },
+    var out = box("NAVIGATION LIBRE", [{ t: "" }, { t: "DATE CIBLE ACTUELLE : " + target }, { t: "" }, { t: "NOUVELLE DATE CIBLE (JJ/MM/AAAA - hh:mm:ss) :" },
       { t: "  " + t, h: "  " + h }, { t: "" }, { t: "GAUCHE/DROITE : CHAMP    HAUT/BAS : +/-    CHIFFRES : SAISIE" },
       { t: "ENTREE : VALIDER    R : REINITIALISER (15/04/2025)    ECHAP : RETOUR" }, { t: "" }, { t: "> " + (st || "EN ATTENTE DE SAISIE_") }], W);
+    return sq ? out + "\n\n" + jumpPrompt() : out;
   }
   function logsBox() {
     var L = logs.slice(-18).map(function (x) { return { t: x }; });
@@ -261,17 +270,8 @@
       L.push({ t: (i === dbi ? "> " : "  ") + x[0] + " : " + x[1] + (n ? "  [" + n + " PHOTO" + (n > 1 ? "S" : "") + "]" : ""), sel: i === dbi });
     });
     L.push({ t: "" }, { t: "HAUT/BAS : PARCOURIR   ENTREE : DEFINIR COMME DATE CIBLE   ECHAP : RETOUR" }, { t: "" }, { t: "> " + (st || "SELECTIONNEZ UNE DATE_") });
-    var out = box("BASE DE DONNEES TEMPORELLE", L, W);
-    if (dbq) {
-      var yes = "[ OUI ]", no = "[ NON ]";
-      out += "\n\n" + box("SAUT TEMPOREL", [
-        { t: "" }, { t: "DATE CIBLE : " + target }, { t: "" },
-        { t: "Souhaitez vous réaliser un saut temporel maintenant ?" }, { t: "" },
-        { t: "      " + yes + "        " + no,
-          h: "      " + (dbyes ? '<span class="sel">' + yes + "</span>" : yes) + "        " + (dbyes ? no : '<span class="sel">' + no + "</span>") },
-        { t: "" }, { t: "FLECHES : CHOISIR   ENTREE : VALIDER   O : OUI   N : NON" }], 62);
-    }
-    return out;
+    var out = box("SAUT TEMPOREL", L, W);
+    return sq ? out + "\n\n" + jumpPrompt() : out;
   }
   function paraBox() {
     var L = [{ t: "" }];
@@ -309,7 +309,7 @@
     if (scr === "menu") h = '<div class="layout">' + P(menuBox()) + '<div class="col">' + P(metBox()) + P(clockBox()) + P(nezBox()) + "</div></div>";
     else if (scr === "nav") h = P(navBox());
     else if (scr === "logs") h = P(logsBox());
-    else if (scr === "db") h = P(dbBox()) + photosBlock(DB[dbi][0], true);
+    else if (scr === "db") h = P(dbBox());
     else if (scr === "para") h = P(paraBox());
     else if (scr === "proto") h = P(protoBox());
     else if (scr === "stats") h = P(statsBox());
@@ -319,10 +319,9 @@
     else if (scr === "game") h = P(gameBox());
     else if (scr === "off") h = P(art + '\n\n  [ REWIND MACHINE EN VEILLE ]\n\n  APPUYEZ SUR UNE TOUCHE POUR ALLUMER<span class="cursor">_</span>');
     $("main").innerHTML = h;
-    if (scr === "db") showPhotos(DB[dbi][0], run, true);
   }
   function go(s) {
-    scr = s; run++; st = ""; prun = false; dbq = false; setBare();
+    scr = s; run++; st = ""; prun = false; sq = false; setBare();
     if (s === "nav") { f = target.match(/\d+/g).map(Number); nf = 0; }
     if (s === "logs") { logs = []; for (var i = 0; i < 6; i++) addLog(); }
     if (s === "para") { pl = []; pp = 0; }
@@ -399,14 +398,30 @@
       if (k === "ArrowDown") cur = (cur + 1) % IT.length;
       else if (k === "ArrowUp") cur = (cur + IT.length - 1) % IT.length;
       else if (k === "n" || k === "N") { beep(880, 80); go("care"); return; }
-      else if (/^[0-9]$/.test(k)) cur = IT.findIndex(function (x) { return x[0].charAt(0) === k; });
-      else if (k === "Enter") { beep(880, 80); var s = IT[cur][1]; if (s === "jump") jump(); else if (s === "shut") shut(); else go(s); return; }
+      else if (/^[0-9]$/.test(k)) {
+        var ix = IT.findIndex(function (x) { return x[0].charAt(0) === k; });
+        if (ix < 0) return;
+        cur = ix;
+      }
+      else if (k === "Enter") { beep(880, 80); var s = IT[cur][1]; if (s === "shut") shut(); else go(s); return; }
       else return;
       beep(440, 40); draw(); return;
     }
     if (k === "Escape") {
-      if (scr === "db" && dbq) { dbq = false; beep(330, 60); draw(); return; }
+      if ((scr === "db" || scr === "nav") && sq) { sq = false; beep(330, 60); draw(); return; }
       beep(330, 60); go("menu"); return;
+    }
+    // Prompt "saut temporel maintenant ?" (Saut temporel et Navigation libre)
+    if ((scr === "db" || scr === "nav") && sq) {
+      var yes = null;
+      if (k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowDown") { syes = !syes; beep(440, 30); draw(); return; }
+      else if (k === "o" || k === "O") yes = true;
+      else if (k === "n" || k === "N") yes = false;
+      else if (k === "Enter") yes = syes;
+      else return;
+      sq = false;
+      if (yes) { beep(880, 80); jump(); return; }
+      beep(330, 60); draw(); return;
     }
     if (scr === "care") {
       if (cmode === "ball") {
@@ -433,26 +448,16 @@
         var ok = f[2] >= 1000 && f[0] >= 1 && f[1] >= 1, dt = new Date(f[2], f[1] - 1, f[0]);
         if (ok && dt.getMonth() === f[1] - 1 && dt.getDate() === f[0]) {
           target = fv(0) + "/" + fv(1) + "/" + fv(2) + " - " + fv(3) + ":" + fv(4) + ":" + fv(5); st = "DATE CIBLE MISE A JOUR"; beep(1000, 120);
+          sq = true; syes = true;
         } else { st = "DATE INVALIDE : LE CONTINUUM REFUSE"; beep(140, 250, "sawtooth"); }
       } else return;
       if (k !== "Enter" && k !== "r" && k !== "R") { st = ""; beep(440, 30); }
       draw(); return;
     }
     if (scr === "db") {
-      if (dbq) {
-        var yes = null;
-        if (k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowDown") { dbyes = !dbyes; beep(440, 30); draw(); return; }
-        else if (k === "o" || k === "O") yes = true;
-        else if (k === "n" || k === "N") yes = false;
-        else if (k === "Enter") yes = dbyes;
-        else return;
-        dbq = false;
-        if (yes) { beep(880, 80); jump(); return; }
-        beep(330, 60); draw(); return;
-      }
       if (k === "ArrowDown") dbi = (dbi + 1) % DB.length;
       else if (k === "ArrowUp") dbi = (dbi + DB.length - 1) % DB.length;
-      else if (k === "Enter") { target = DB[dbi][0] + " - " + (DB[dbi][2] || "20:00:00"); st = "DATE CIBLE DEFINIE : " + target; dbq = true; dbyes = true; beep(1000, 120); draw(); return; }
+      else if (k === "Enter") { target = DB[dbi][0] + " - " + (DB[dbi][2] || "20:00:00"); st = "DATE CIBLE DEFINIE : " + target; sq = true; syes = true; beep(1000, 120); draw(); return; }
       else return;
       st = ""; beep(440, 40); draw(); return;
     }
@@ -651,7 +656,7 @@
   }, 300);
   // Saut temporel
   async function jump() {
-    scr = "jump"; jdone = false; dbq = false; var tk = ++run; setBare();
+    scr = "jump"; jdone = false; sq = false; var tk = ++run; setBare();
     var d = target.slice(0, 10), dp = d.split("/"), dt = new Date(+dp[2], +dp[1] - 1, +dp[0]), now = new Date(); now.setHours(0, 0, 0, 0);
     if (!(await typeLines(["INITIALISATION DU SAUT TEMPOREL", "DESTINATION : " + target, "CHARGEMENT DU CONDENSATEUR DE FLUX ... OK", ""], 450, tk))) return;
     for (var i = 5; i >= 1; i--) {
@@ -694,7 +699,7 @@
   setInterval(randomize, 5000);
   setInterval(function () { if (scr === "menu") { nezStep(); draw(); } else if (scr === "care") nezStep(); }, 1000);
   setInterval(function () { if (scr === "logs") { addLog(); draw(); } }, 900);
-  // Precharge des photos (pour l'indicateur dans la base de donnees)
+  // Precharge des photos (pour l'indicateur texte dans la liste des dates)
   DB.forEach(function (x) { findPhotos(x[0]).then(function () { if (scr === "db") draw(); }); });
   draw();
 })();
