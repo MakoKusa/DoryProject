@@ -20,8 +20,15 @@
   .bare h1, .bare footer { visibility: hidden; }
   .photos { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
   .photos figure { margin: 0; border: 2px solid #fff; padding: 6px; max-width: min(360px, 88vw); }
-  .photos img { display: block; max-width: 100%; max-height: 300px; filter: contrast(1.05) brightness(.92) saturate(.9); }
+  .photos img { display: block; max-width: 100%; max-height: 300px; cursor: zoom-in; filter: contrast(1.05) brightness(.92) saturate(.9); }
   .photos figcaption { margin-top: 6px; font-size: 14px; }
+  .photos.thumbs { gap: 12px; margin-top: 12px; }
+  .photos.thumbs figure { max-width: 200px; padding: 4px; }
+  .photos.thumbs img { max-height: 110px; }
+  .photos.thumbs figcaption { font-size: 12px; margin-top: 4px; }
+  #lb { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.95); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: zoom-out; padding: 12px; box-sizing: border-box; }
+  #lb img { max-width: 92vw; max-height: 80vh; border: 2px solid #fff; padding: 6px; background: #000; }
+  #lb .lbcap { font-size: 14px; text-align: center; }
   @keyframes blink { 50% { opacity: 0; } }
   @keyframes flick { 0%,100% { opacity: 1; } 91% { opacity: .95; } 93% { opacity: .82; } 95% { opacity: .98; } }
   @keyframes shake { 25% { transform: translate(-7px,3px); } 50% { transform: translate(6px,-4px); } 75% { transform: translate(-3px,-7px); } }
@@ -89,7 +96,7 @@
   // ---------- Etat ----------
   var DEF = "15/04/2025 - 20:00:00", target = DEF;
   var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false;
-  var f = [], nf = 0, dbi = 0, logs = [], pl = [], pp = 0;
+  var f = [], nf = 0, dbi = 0, dbq = false, dbyes = true, logs = [], pl = [], pp = 0;
   var IT = [["1. SAUT TEMPOREL", "jump"], ["2. BASE DE DONNEES TEMPORELLE", "db"], ["3. NAVIGATION LIBRE", "nav"], ["4. LOGS SYSTEME", "logs"],
     ["5. SIMULATION DE PARADOXE", "para"], ["6. STATISTIQUES", "stats"], ["7. MINI JEUX", "mini"], ["8. D.O.R.Y PROTOCOL", "proto"],
     ["9. NE PAS UTILISER", "pw"], ["0. ETEINDRE", "shut"]];
@@ -133,20 +140,42 @@
     }
     PH[d] = out; return out;
   }
-  function photosBlock() { return '<div class="photos" id="photos"></div>'; }
-  async function showPhotos(d, tk) {
+  function photosBlock(d, thumbs) {
+    return '<div class="photos' + (thumbs ? " thumbs" : "") + '" id="photos" data-d="' + d + '"></div>';
+  }
+  async function showPhotos(d, tk, quiet) {
     var urls = await findPhotos(d);
     if (tk !== run) return;
-    var el = $("photos"); if (!el) return;
-    if (!urls.length) { el.textContent = "[ ARCHIVES PHOTO : AUCUN SOUVENIR NUMERISE POUR CETTE DATE ]"; return; }
+    var el = $("photos");
+    if (!el || el.getAttribute("data-d") !== d || el.hasChildNodes()) return;
+    if (!urls.length) { if (!quiet) el.textContent = "[ ARCHIVES PHOTO : AUCUN SOUVENIR NUMERISE POUR CETTE DATE ]"; return; }
     urls.forEach(function (u, i) {
       var fig = document.createElement("figure"), img = document.createElement("img"), cap = document.createElement("figcaption");
-      img.src = u; img.alt = "Souvenir du " + d;
+      img.src = u; img.alt = "Souvenir du " + d; img.title = "Cliquer pour agrandir";
+      img.onclick = function (ev) { ev.stopPropagation(); openLb(urls, i, d); };
       cap.textContent = "PHOTO " + (i + 1) + "/" + urls.length + (CAP[d] && CAP[d][i] ? " - " + CAP[d][i] : "");
       fig.appendChild(img); fig.appendChild(cap); el.appendChild(fig);
     });
-    beep(1100, 80);
+    if (!quiet) beep(1100, 80);
   }
+  // Visionneuse plein ecran
+  var lb = null;
+  function lbRender() {
+    var o = $("lb"); if (!o || !lb) return;
+    o.textContent = "";
+    var img = document.createElement("img"), c = document.createElement("div");
+    img.src = lb.u[lb.i]; img.alt = "Souvenir du " + lb.d;
+    c.className = "lbcap";
+    c.textContent = "PHOTO " + (lb.i + 1) + "/" + lb.u.length + " - " + lb.d + (CAP[lb.d] && CAP[lb.d][lb.i] ? " - " + CAP[lb.d][lb.i] : "") +
+      (lb.u.length > 1 ? "   GAUCHE/DROITE : NAVIGUER" : "") + "   ECHAP OU CLIC : FERMER";
+    o.appendChild(img); o.appendChild(c);
+  }
+  function openLb(urls, i, d) {
+    closeLb(); lb = { u: urls, i: i, d: d };
+    var o = document.createElement("div"); o.id = "lb"; o.onclick = closeLb;
+    document.body.appendChild(o); lbRender(); beep(900, 60);
+  }
+  function closeLb() { var o = $("lb"); if (o) o.remove(); lb = null; }
 
   var POOL = ["I|Envie de sushis détectée. Niveau : CRITIQUE.", "E|Besoin de promener Nezuko. Priorité absolue.",
     "I|Réservoir de barbe à papa vide. Couleur : rose.", "W|Barbe à papa demandée. Stock : 0. Panique.",
@@ -232,7 +261,17 @@
       L.push({ t: (i === dbi ? "> " : "  ") + x[0] + " : " + x[1] + (n ? "  [" + n + " PHOTO" + (n > 1 ? "S" : "") + "]" : ""), sel: i === dbi });
     });
     L.push({ t: "" }, { t: "HAUT/BAS : PARCOURIR   ENTREE : DEFINIR COMME DATE CIBLE   ECHAP : RETOUR" }, { t: "" }, { t: "> " + (st || "SELECTIONNEZ UNE DATE_") });
-    return box("BASE DE DONNEES TEMPORELLE", L, W);
+    var out = box("BASE DE DONNEES TEMPORELLE", L, W);
+    if (dbq) {
+      var yes = "[ OUI ]", no = "[ NON ]";
+      out += "\n\n" + box("SAUT TEMPOREL", [
+        { t: "" }, { t: "DATE CIBLE : " + target }, { t: "" },
+        { t: "Souhaitez vous réaliser un saut temporel maintenant ?" }, { t: "" },
+        { t: "      " + yes + "        " + no,
+          h: "      " + (dbyes ? '<span class="sel">' + yes + "</span>" : yes) + "        " + (dbyes ? no : '<span class="sel">' + no + "</span>") },
+        { t: "" }, { t: "FLECHES : CHOISIR   ENTREE : VALIDER   O : OUI   N : NON" }], 62);
+    }
+    return out;
   }
   function paraBox() {
     var L = [{ t: "" }];
@@ -270,7 +309,7 @@
     if (scr === "menu") h = '<div class="layout">' + P(menuBox()) + '<div class="col">' + P(metBox()) + P(clockBox()) + P(nezBox()) + "</div></div>";
     else if (scr === "nav") h = P(navBox());
     else if (scr === "logs") h = P(logsBox());
-    else if (scr === "db") h = P(dbBox());
+    else if (scr === "db") h = P(dbBox()) + photosBlock(DB[dbi][0], true);
     else if (scr === "para") h = P(paraBox());
     else if (scr === "proto") h = P(protoBox());
     else if (scr === "stats") h = P(statsBox());
@@ -280,9 +319,10 @@
     else if (scr === "game") h = P(gameBox());
     else if (scr === "off") h = P(art + '\n\n  [ REWIND MACHINE EN VEILLE ]\n\n  APPUYEZ SUR UNE TOUCHE POUR ALLUMER<span class="cursor">_</span>');
     $("main").innerHTML = h;
+    if (scr === "db") showPhotos(DB[dbi][0], run, true);
   }
   function go(s) {
-    scr = s; run++; st = ""; prun = false; setBare();
+    scr = s; run++; st = ""; prun = false; dbq = false; setBare();
     if (s === "nav") { f = target.match(/\d+/g).map(Number); nf = 0; }
     if (s === "logs") { logs = []; for (var i = 0; i < 6; i++) addLog(); }
     if (s === "para") { pl = []; pp = 0; }
@@ -341,6 +381,12 @@
   document.addEventListener("keydown", function (e) {
     var k = e.key;
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", " "].indexOf(k) >= 0) e.preventDefault();
+    if (lb) {
+      if (k === "Escape" || k === "Enter" || k === " ") closeLb();
+      else if (k === "ArrowLeft" && lb.u.length > 1) { lb.i = (lb.i + lb.u.length - 1) % lb.u.length; lbRender(); }
+      else if (k === "ArrowRight" && lb.u.length > 1) { lb.i = (lb.i + 1) % lb.u.length; lbRender(); }
+      return;
+    }
     idle = Date.now();
     if (scr === "ss") { go("menu"); return; }
     if ((k === "m" || k === "M") && scr !== "pw") { muted = !muted; if (scr === "menu") draw(); return; }
@@ -358,7 +404,10 @@
       else return;
       beep(440, 40); draw(); return;
     }
-    if (k === "Escape") { beep(330, 60); go("menu"); return; }
+    if (k === "Escape") {
+      if (scr === "db" && dbq) { dbq = false; beep(330, 60); draw(); return; }
+      beep(330, 60); go("menu"); return;
+    }
     if (scr === "care") {
       if (cmode === "ball") {
         if (ball.done) { if (k === "Enter") { cmode = "menu"; ci = 0; } else return; }
@@ -390,9 +439,20 @@
       draw(); return;
     }
     if (scr === "db") {
+      if (dbq) {
+        var yes = null;
+        if (k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowDown") { dbyes = !dbyes; beep(440, 30); draw(); return; }
+        else if (k === "o" || k === "O") yes = true;
+        else if (k === "n" || k === "N") yes = false;
+        else if (k === "Enter") yes = dbyes;
+        else return;
+        dbq = false;
+        if (yes) { beep(880, 80); jump(); return; }
+        beep(330, 60); draw(); return;
+      }
       if (k === "ArrowDown") dbi = (dbi + 1) % DB.length;
       else if (k === "ArrowUp") dbi = (dbi + DB.length - 1) % DB.length;
-      else if (k === "Enter") { target = DB[dbi][0] + " - " + (DB[dbi][2] || "20:00:00"); st = "DATE CIBLE DEFINIE : " + target; beep(1000, 120); draw(); return; }
+      else if (k === "Enter") { target = DB[dbi][0] + " - " + (DB[dbi][2] || "20:00:00"); st = "DATE CIBLE DEFINIE : " + target; dbq = true; dbyes = true; beep(1000, 120); draw(); return; }
       else return;
       st = ""; beep(440, 40); draw(); return;
     }
@@ -591,7 +651,7 @@
   }, 300);
   // Saut temporel
   async function jump() {
-    scr = "jump"; jdone = false; var tk = ++run; setBare();
+    scr = "jump"; jdone = false; dbq = false; var tk = ++run; setBare();
     var d = target.slice(0, 10), dp = d.split("/"), dt = new Date(+dp[2], +dp[1] - 1, +dp[0]), now = new Date(); now.setHours(0, 0, 0, 0);
     if (!(await typeLines(["INITIALISATION DU SAUT TEMPOREL", "DESTINATION : " + target, "CHARGEMENT DU CONDENSATEUR DE FLUX ... OK", ""], 450, tk))) return;
     for (var i = 5; i >= 1; i--) {
@@ -609,7 +669,7 @@
       .forEach(function (x) { L.push({ t: x }); });
     if (ev && MSG[d]) { L.push({ t: "" }); wrap("MESSAGE : " + MSG[d], W - 4).forEach(function (x) { L.push({ t: x }); }); }
     L.push({ t: "" }, { t: "TOUCHE : RETOUR AU MENU" });
-    $("main").innerHTML = P(box("ARRIVEE", L, W)) + (ev ? photosBlock() : ""); beep(1000, 200); jdone = true;
+    $("main").innerHTML = P(box("ARRIVEE", L, W)) + (ev ? photosBlock(d) : ""); beep(1000, 200); jdone = true;
     if (ev) showPhotos(d, tk);
   }
   async function birthday(tk) {
@@ -625,7 +685,7 @@
     var L = [{ t: "" }, { t: "*** JOYEUX ANNIVERSAIRE DORY ! ***" }, { t: target.indexOf("23:19") > -1 ? "23:19 : L'HEURE EXACTE !" : "" }, { t: "" }];
     wrap(BDAY_MSG, W - 4).forEach(function (x) { L.push({ t: x }); });
     L.push({ t: "" }, { t: "TOUCHE : RETOUR AU MENU" });
-    $("main").innerHTML = P(esc(rows.slice(0, 3).join("\n")) + "\n" + box("ANNIVERSAIRE DE DORY", L, W)) + photosBlock();
+    $("main").innerHTML = P(esc(rows.slice(0, 3).join("\n")) + "\n" + box("ANNIVERSAIRE DE DORY", L, W)) + photosBlock("19/09/2026");
     showPhotos("19/09/2026", tk);
   }
 
