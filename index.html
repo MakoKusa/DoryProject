@@ -18,16 +18,18 @@
   .cursor { animation: blink 1s steps(1) infinite; }
   footer { margin-top: auto; padding-top: 28px; }
   .bare h1, .bare footer { visibility: hidden; }
-  .photos { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
-  .photos img { max-width: min(260px, 30vw); max-height: 190px; object-fit: contain; border: 1px solid #fff; background: #000; filter: grayscale(1) contrast(1.1); }
+  .photos { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
+  .photos figure { margin: 0; border: 2px solid #fff; padding: 6px; max-width: min(360px, 88vw); }
+  .photos img { display: block; max-width: 100%; max-height: 300px; filter: contrast(1.05) brightness(.92) saturate(.9); }
+  .photos figcaption { margin-top: 6px; font-size: 14px; }
   @keyframes blink { 50% { opacity: 0; } }
   @keyframes flick { 0%,100% { opacity: 1; } 91% { opacity: .95; } 93% { opacity: .82; } 95% { opacity: .98; } }
   @keyframes shake { 25% { transform: translate(-7px,3px); } 50% { transform: translate(6px,-4px); } 75% { transform: translate(-3px,-7px); } }
   @keyframes crtoff { 0% { transform: scale(1,1); filter: brightness(1); } 55% { transform: scale(1,.01); filter: brightness(4); } 100% { transform: scale(0,.01); filter: brightness(0); } }
   #crt.shake { animation: shake .08s infinite; }
   #crt.crtoff { animation: crtoff .8s forwards; }
-  #crt.inv { filter: invert(1); }
-  @media (prefers-reduced-motion: reduce) { #crt, .cursor { animation: none; } }
+  #crt.inv { filter: invert(1) brightness(.35); }
+  @media (prefers-reduced-motion: reduce) { #crt, .cursor { animation: none; } #crt.inv { filter: none; } }
 </style>
 </head>
 <body>
@@ -88,33 +90,84 @@
   var DEF = "15/04/2025 - 20:00:00", target = DEF;
   var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false;
   var f = [], nf = 0, dbi = 0, logs = [], pl = [], pp = 0;
-  var IT = [["1. SAUT TEMPOREL", "jump"], ["2. BASE DE DONNEES TEMPORELLE", "db"], ["3. NAVIGATION LIBRE", "nav"], ["4. LOGS SYSTEME", "logs"], ["5. SIMULATION DE PARADOXE", "para"], ["6. STATISTIQUES", "stats"], ["7. MINI JEUX", "games"], ["8. D.O.R.Y PROTOCOL", "proto"], ["9. NE PAS UTILISER", "pw"], ["0. ETEINDRE", "shut"]];
+  var IT = [["1. SAUT TEMPOREL", "jump"], ["2. BASE DE DONNEES TEMPORELLE", "db"], ["3. NAVIGATION LIBRE", "nav"], ["4. LOGS SYSTEME", "logs"],
+    ["5. SIMULATION DE PARADOXE", "para"], ["6. STATISTIQUES", "stats"], ["7. MINI JEUX", "mini"], ["8. D.O.R.Y PROTOCOL", "proto"],
+    ["9. NE PAS UTILISER", "pw"], ["0. ETEINDRE", "shut"]];
   var metrics = [["PUISSANCE", 20], ["STABILITE", 80], ["CAUSALITE", 30], ["PARADOXE", 100], ["SUSHIMETER", 30]];
   var DB = [["15/04/2025", "Premiers échanges avec DORY"], ["17/10/2025", "Reprise de contact avec DORY"],
     ["12/03/2026", "Concert de l'Attaque des Titans"], ["26/03/2026", "Premier Naniwa"], ["16/04/2026", "Premier Nanimois"],
     ["25/04/2026", "Concert Clair Obscur : Expedition 33"], ["02/05/2026", "Concert de Lorie"], ["14/05/2026", "Nezuko joined the grotte"],
     ["19/06/2026", "Week-end en Bretagne anti-canicule"], ["19/09/2026", "Anniversaire de Dory à 23h19", "23:19:00"],
     ["29/09/2026", "Lancement du D.O.R.Y PROJECT"]];
+  var MSG = {
+    "15/04/2025": "Le jour où tout a commencé et où j'aimerais tant pouvoir retourner, tout changer, pouvoir passer ma vie aux côtés de Dory.",
+    "17/10/2025": "L'une de mes meilleures décisions, j'ai tellement bien fait de renvoyer un message malgré la culpabilité.",
+    "12/03/2026": "Je me souviens presque davantage de la discussion en bas du bâtiment que du concert en lui-même, c'est pour dire !",
+    "26/03/2026": "Le premier Naniwa, je ne sais pas si j'étais plus séduit par les sushis ou par la compagnie...",
+    "16/04/2026": "Le premier Nanimois d'une grande série, je souhaite qu'il dure pour l'éternité.",
+    "25/04/2026": "L'un de mes meilleurs concerts, un de mes meilleurs souvenirs de 2026 avec Dory.",
+    "02/05/2026": "Bien que ce ne soit pas ma came, c'était trop bien, merci Dory d'ouvrir mes horizons à de nouvelles choses !",
+    "14/05/2026": "Quel plaisir d'avoir pu rencontrer Nezuko, elle est tellement mignonne, intelligente et drôle. On dit que le chien ressemble à son maître !",
+    "19/06/2026": "Un super week-end anticanicule avec deux baignades que je n'oublierai jamais !",
+    "29/09/2026": "Le lancement du projet d'une vie, celui de pouvoir réparer le passé afin d'avoir le plus beau des futurs."
+  };
+
+  // ---------- Photos souvenirs ----------
+  // Convention : dossier "photos/" a cote de index.html, fichiers AAAA-MM-JJ_1.jpg, _2, _3 (jpg, jpeg, png ou webp).
+  // Legendes optionnelles : ajouter par exemple  "15/04/2025": ["Legende photo 1", "Legende photo 2"]
+  var CAP = {
+  };
+  var PH = {};
+  var EXTS = ["jpg", "jpeg", "png", "webp"];
+  function probe(url) {
+    return new Promise(function (r) { var i = new Image(); i.onload = function () { r(true); }; i.onerror = function () { r(false); }; i.src = url; });
+  }
+  async function findPhotos(d) {
+    if (PH[d]) return PH[d];
+    var dp = d.split("/"), base = "photos/" + dp[2] + "-" + dp[1] + "-" + dp[0], out = [];
+    for (var n = 1; n <= 3; n++) {
+      for (var e = 0; e < EXTS.length; e++) {
+        var u = base + "_" + n + "." + EXTS[e];
+        if (await probe(u)) { out.push(u); break; }
+      }
+    }
+    PH[d] = out; return out;
+  }
+  function photosBlock() { return '<div class="photos" id="photos"></div>'; }
+  async function showPhotos(d, tk) {
+    var urls = await findPhotos(d);
+    if (tk !== run) return;
+    var el = $("photos"); if (!el) return;
+    if (!urls.length) { el.textContent = "[ ARCHIVES PHOTO : AUCUN SOUVENIR NUMERISE POUR CETTE DATE ]"; return; }
+    urls.forEach(function (u, i) {
+      var fig = document.createElement("figure"), img = document.createElement("img"), cap = document.createElement("figcaption");
+      img.src = u; img.alt = "Souvenir du " + d;
+      cap.textContent = "PHOTO " + (i + 1) + "/" + urls.length + (CAP[d] && CAP[d][i] ? " - " + CAP[d][i] : "");
+      fig.appendChild(img); fig.appendChild(cap); el.appendChild(fig);
+    });
+    beep(1100, 80);
+  }
+
   var POOL = ["I|Envie de sushis détectée. Niveau : CRITIQUE.", "E|Besoin de promener Nezuko. Priorité absolue.",
     "I|Réservoir de barbe à papa vide. Couleur : rose.", "W|Barbe à papa demandée. Stock : 0. Panique.",
     "W|Les Junimos font grève dans le condensateur.", "I|Les poules de la machine n'ont pas été nourries.",
     "I|Krobus repéré dans les égouts du continuum.", "W|Pierre ferme à 17h. Le voyage temporel aussi.",
-    "E|Joja Corp tente de racheter la machine. Refusé.", "E|Cuisine en feu ! Le chef panique.",
+    "E|Joja Corp tente de racheter la machine. Refusé.", "E|Cuisine en feu ! Oignons non coupés. (Overcooked)",
     "I|Menu 100% végétarien validé. Tofu grillé OK.", "I|Main de poker : quinte flush rose. Bluff suspect.",
     "I|Hello Kitty détectée secteur 7. Nœud rose intact.", "W|Nezuko a mordillé un câble. Il était rose.",
-    "I|Récolte terminée. Le futur est prometteur.", "W|Pelican Town : le bus est toujours en panne.",
-    "I|Sushimeter bloqué sur MIAM.", "E|Dernier sushi au saumon réclamé par deux personnes.", "I|Spitz nain en surchauffe : mignon > 9000.",
+    "I|Récolte de panais terminée. Le futur est prometteur.", "W|Pelican Town : le bus est toujours en panne.",
+    "I|Sushimeter bloqué sur MIAM.", "E|ALL IN sur un sushi saumon-avocat.", "I|Spitz nain en surchauffe : mignon > 9000.",
     "I|Pêche temporelle : 1 anguille, 2 sushis.", "W|Pas assez de rose dans l'interface. Ajout de rose.",
     "I|Pause promenade de Nezuko validée.", "W|Quelqu'un a mangé le dernier maki. Enquête ouverte.",
     "I|Nezuko : 10/10 cœurs. Maximum atteint.",
-    "I|Recette de sushi végétarien ajoutée : tofu grillé.", "W|Le rose sature. Impossible de rajouter du rose. Rajout.", "E|Nezuko a repéré un écureuil. Poursuite engagée.",
+    "I|Recette de sushi végétarien ajoutée : avocat-concombre.", "W|Le rose sature. Impossible de rajouter du rose. Rajout.", "E|Nezuko a repéré un écureuil. Poursuite engagée.",
     "I|Barbe à papa rose : la meilleure des barbes à papa.", "W|Le poulet de Stardew s'est échappé de la machine.", "I|Ticket de poker : paire de Hello Kitty.",
     "E|Overcooked : la soupe déborde. Personne n'a de seau.", "I|Le Spitz nain refuse d'entrer dans le vaisseau : sieste.", "W|Prise de rose détectée dans le condensateur.",
     "I|Le poisson de la Rivière valide le voyage temporel.", "W|Les Junimos demandent des sushis. Pas de tofu.", "I|Gaufre virtuelle en préparation. Pas de gluten (juste rose).",
     "E|Le Sushimeter a dépassé le seuil de la faim.", "I|Recherche de Nezuko : elle est sur le canapé.", "W|Sushi au thon détecté. Alerte végétarienne, rejeté.",
     "I|Mise à jour Stardew : +1 poule, +1 fromage.", "I|Diagnostic : besoin urgent de câlins pour Nezuko.", "W|Panne de barbe à papa au 3e sous-sol.",
     "I|Mine niveau 120 explorée. Aucune trace de sushi.", "I|Livraison de kebab végétarien à minuit : validée.", "W|Personne n'a vu le dernier gâteau rose.",
-    "E|Junimo en surchauffe : trop d'objets à ramasser.", "I|Hello Kitty a validé la commande de noeuds roses.", "I|La grotte est prête. Nezuko a pris le canapé.",
+    "E|Junimo en surchauffe : trop de fruits à ramasser.", "I|Hello Kitty a validé la commande de noeuds roses.", "I|La grotte est prête. Nezuko a pris le canapé.",
     "W|Poker : Dora bluffe, Dory devine, personne ne gagne.", "I|Concert détecté à proximité. Bouchons d'oreilles conseillés.", "I|Baignade à la mer : eau à 18°C, sushi à 100%.",
     "E|Les cils de Dory sont collés. Cause inconnue.", "I|Sursaut de Dora enregistré. Cause : Dory.", "W|Pizza en approche. Fromage : oui. Viande : non.",
     "I|Nanimois : rituel mensuel confirmé.", "I|Feu d'artifice détecté. Nezuko sous le canapé.", "W|Le rose n'est pas une couleur, c'est un mode de vie."];
@@ -122,8 +175,8 @@
     ["Vous empêchez DORY de commander des sushis en 2025.", "Sans sushis, pas de repas partagé.", "Sans repas partagé, pas de rencontre.", "Sans rencontre, aucune raison de remonter le temps.", "PARADOXE : impossible d'éviter les sushis."],
     ["Vous promenez Nezuko dans le passé.", "Elle croise Nezuko du passé, déjà promenée.", "Deux Nezuko réclament des câlins en même temps.", "Le taux de mignon dépasse 9000.", "PARADOXE : une promenade en trop. Nezuko est ravie."],
     ["Vous ramenez une barbe à papa de 2026.", "Elle fond dans le continuum espace-temps.", "Le passé devient collant et rose.", "Personne ne sait plus quelle année on est.", "PARADOXE : la barbe à papa existe avant d'être faite."],
-    ["Vous plantez un panais en 2025.", "Un Junimo l'a déjà récolté en 2026.", "Le panais est dans l'inventaire avant d'être planté.", "Pierre refuse de le racheter.", "PARADOXE : la récolte précède la graine."],
-    ["Vous cuisinez dans le passé.", "La cuisine prend feu avant l'allumette.", "Le tofu est cuit avant d'être posé.", "Le chef hurle dans deux époques.", "PARADOXE : l'incendie a lieu, mais rien ne brûle."],
+    ["Vous plantez un panais en 2025 (Stardew Valley).", "Un Junimo l'a déjà récolté en 2026.", "Le panais est dans l'inventaire avant d'être planté.", "Pierre refuse de le racheter.", "PARADOXE : la récolte précède la graine."],
+    ["Vous cuisinez dans le passé (Overcooked).", "La cuisine prend feu avant l'allumette.", "Le tofu est cuit avant d'être posé.", "Le chef hurle dans deux époques.", "PARADOXE : l'incendie a lieu, mais rien ne brûle."],
     ["Vous annoncez une quinte flush rose au poker.", "DORY avait déjà couché sa main hier.", "Le pot appartient à un futur qui n'a pas eu lieu.", "Hello Kitty valide les jetons.", "PARADOXE : vous gagnez contre vous-même."],
     ["Vous offrez un Hello Kitty à DORY en 2025.", "Elle l'avait déjà dans sa collection en 2026.", "Le doublon se téléporte dans une boucle de rose.", "La boucle demande un sushi en échange.", "PARADOXE : un Hello Kitty est offert avant d'être acheté."],
     ["Vous amenez Nezuko au restaurant de sushis du passé.", "Le serveur ne trouve aucun sushi végétarien.", "Nezuko mange le menu. Le menu n'a jamais existé.", "Le restaurant est fermé depuis demain.", "PARADOXE : la faim précède le repas."]];
@@ -131,15 +184,15 @@
     "CALIBRAGE DU SUSHIMETER ..... OK", "RECHERCHE DE NEZUKO ......... TROUVEE (ELLE VEUT SORTIR)", "VERIFICATION DU ROSE ........ SUFFISANT", "", "CHARGEMENT DU MENU PRINCIPAL..."];
   var SHUT = ["ARRET DE LA REWIND MACHINE MoP 3000 PRO MAX...", "", "Sauvegarde des lignes temporelles ...... OK", "Refroidissement du condensateur de flux  OK",
     "Nezuko prévenue de l'extinction ........ (elle s'en fiche)", "Sushis restants : 0   Barbe à papa restante : 0", "", "A BIENTOT, DORY.", "N'oublie pas la promenade de Nezuko."];
-  var PROTO = "Le D.O.R.Y PROJECT vise à construire une machine à remonter dans le temps nommée la Rewind Machine MoP 3000 Pro Max afin de ne pas reproduire les erreurs du passé et modifier le futur.\n\nLe D.O.R.Y PROTOCOL vise à remonter le temps à la date clé du 15/04/2025, date à laquelle Dory et Dora se sont échangés leurs premiers messages. Le but est de modifier le passé afin de réécrire un futur dans lequel Dory et Dora vivent leur meilleure vie.\n\nLa machine peut cependant être utilisée pour voyager à d'autres dates dont celles listées dans la BASE DE DONNEES TEMPORELLE, il suffit de sélectionner la date désirée dans la BASE DE DONNEES TEMPORELLE et de réaliser un SAUT TEMPOREL à cette date.\n\nATTENTION : l'usage de cette machine peut produire une rupture du continuum espace-temps et créer un paradoxe temporel. La section SIMULATION DE PARADOXE est un outil permettant de s'en prémunir (sans garantie).";
+  var PROTO = "Le D.O.R.Y PROJECT vise à construire une machine à remonter dans le temps nommée la Rewind Machine MoP 3000 Pro Max afin de ne pas reproduire les erreurs du passé et modifier le futur.\n\nLe D.O.R.Y PROTOCOL vise à remonter le temps à la date clé du 15/04/2025, date à laquelle Dory et Dora se sont échangés leurs premiers messages. Le but est de modifier le passé afin de réécrire un futur dans lequel Dory et Dora vivent leur meilleure vie.\n\nLa machine peut cependant être utilisée pour voyager à d'autres dates dont celles listées dans la BASE DE DONNEES TEMPORELLE.\n\nATTENTION : l'usage de cette machine peut produire une rupture du continuum espace-temps et créer un paradoxe temporel. La section SIMULATION DE PARADOXE est un outil permettant de s'en prémunir (sans garantie).";
 
   // ---------- Rendu ----------
-  function setBare() { crt.classList.toggle("bare", ["menu", "nav", "logs", "db", "para", "proto", "stats", "pw", "game", "games", "care"].indexOf(scr) < 0); }
+  function setBare() { crt.classList.toggle("bare", ["menu", "nav", "logs", "db", "para", "proto", "stats", "pw", "game", "mini", "care"].indexOf(scr) < 0); }
   function menuBox() {
     var L = [{ t: "" }];
     IT.forEach(function (x, i) { L.push({ t: (i === cur ? "> " : "  ") + x[0], sel: i === cur }); });
-    L.push({ t: "" }, { t: "FLECHES : NAVIGUER   ENTREE : VALIDER" }, { t: "M : SON " + (muted ? "OFF" : "ON") + "   N : ENTRETIEN NEZUKO" }, { t: "" },
-      { t: al() ? "> " + al() : "> EN ATTENTE DE COMMANDE_" });
+    L.push({ t: "" }, { t: "FLECHES : NAVIGUER   ENTREE : VALIDER" }, { t: "N : NEZUKO   M : SON " + (muted ? "OFF" : "ON") }, { t: "" },
+      { t: "> EN ATTENTE DE COMMANDE_" });
     return box("PANNEAU DE CONTROLE", L, 44);
   }
   function metBox() {
@@ -174,8 +227,10 @@
   }
   function dbBox() {
     var L = [{ t: "" }];
-    DB.forEach(function (x, i) { L.push({ t: (i === dbi ? "> " : "  ") + x[0] + " : " + x[1], sel: i === dbi }); });
-    L.push({ t: "" }); wrap("« " + (MSG[DB[dbi][0]] || "") + " »", W - 4).forEach(function (x) { L.push({ t: x }); });
+    DB.forEach(function (x, i) {
+      var n = PH[x[0]] ? PH[x[0]].length : 0;
+      L.push({ t: (i === dbi ? "> " : "  ") + x[0] + " : " + x[1] + (n ? "  [" + n + " PHOTO" + (n > 1 ? "S" : "") + "]" : ""), sel: i === dbi });
+    });
     L.push({ t: "" }, { t: "HAUT/BAS : PARCOURIR   ENTREE : DEFINIR COMME DATE CIBLE   ECHAP : RETOUR" }, { t: "" }, { t: "> " + (st || "SELECTIONNEZ UNE DATE_") });
     return box("BASE DE DONNEES TEMPORELLE", L, W);
   }
@@ -189,6 +244,9 @@
   function protoBox() {
     var L = [{ t: "" }].concat(wrap(PROTO, W - 4).map(function (x) { return { t: x }; }), [{ t: "" }, { t: "ECHAP : RETOUR" }]);
     return box("D.O.R.Y PROTOCOL", L, W);
+  }
+  function miniBox() {
+    return box("MINI JEUX", [{ t: "" }, { t: "" }, { t: "" }, { t: "ECHAP : RETOUR" }], W);
   }
   var STATS = ["Nombre de barbes à papas partagées : 5", "Nombre de moment pizza partagés : 4", "Nombre de Nanimois : 5", "Nombre de Moirmite : 2",
     "Nombre de soirée Overcooked : 2", "Nombre de session Stardew Valley : 4", "Nombre de sorties de Nezuko : plein", "Nombre de baignades à la mer : 2",
@@ -212,13 +270,13 @@
     if (scr === "menu") h = '<div class="layout">' + P(menuBox()) + '<div class="col">' + P(metBox()) + P(clockBox()) + P(nezBox()) + "</div></div>";
     else if (scr === "nav") h = P(navBox());
     else if (scr === "logs") h = P(logsBox());
-    else if (scr === "db") h = P(dbBox()) + photosHtml(DB[dbi][0]);
+    else if (scr === "db") h = P(dbBox());
     else if (scr === "para") h = P(paraBox());
     else if (scr === "proto") h = P(protoBox());
     else if (scr === "stats") h = P(statsBox());
+    else if (scr === "mini") h = P(miniBox());
+    else if (scr === "care") h = P(cmode === "menu" ? careBox() : ballBox());
     else if (scr === "pw") h = P(pwBox());
-    else if (scr === "games") h = P(box("MINI JEUX", [{ t: "" }, { t: "> 1. SUSHI CATCHER", sel: true }, { t: "" }, { t: "ENTREE : JOUER   ECHAP : RETOUR" }], W));
-    else if (scr === "care") h = P(careBox());
     else if (scr === "game") h = P(gameBox());
     else if (scr === "off") h = P(art + '\n\n  [ REWIND MACHINE EN VEILLE ]\n\n  APPUYEZ SUR UNE TOUCHE POUR ALLUMER<span class="cursor">_</span>');
     $("main").innerHTML = h;
@@ -229,8 +287,8 @@
     if (s === "logs") { logs = []; for (var i = 0; i < 6; i++) addLog(); }
     if (s === "para") { pl = []; pp = 0; }
     if (s === "pw") pwb = "";
-    if (s === "care") { cm = "menu"; cmsg = ""; }
     if (s === "game") gameInit();
+    if (s === "care") { cmode = "menu"; ci = 0; cmsg = ""; }
     draw();
   }
 
@@ -261,12 +319,12 @@
     for (var i = 0; i < 40; i++) {
       var g = "";
       for (var r = 0; r < 24; r++) { for (var c = 0; c < W + 2; c++) g += Math.random() < 0.35 ? ch[Math.random() * ch.length | 0] : " "; g += "\n"; }
-      $("main").innerHTML = P(esc(g)); crt.classList.toggle("inv", i % 5 === 3);
+      $("main").innerHTML = P(esc(g)); crt.classList.toggle("inv", i % 10 === 5);
       beep(80 + Math.random() * 900, 50, "sawtooth"); await sleep(60);
     }
     crt.classList.remove("shake"); crt.classList.add("inv");
     $("main").innerHTML = P("\n *** ERREUR FATALE 0x15042025 ***\n\n CONTINUUM ESPACE-TEMPS : DETRUIT\n PARADOXE : 100%   CAUSALITE : 0%   STABILITE : ???\n\n" +
-      " Vous avez appuyé sur NE PAS UTILISER.\n Un sushi a disparu quelque part dans le multivers.\n Nezuko attend toujours sa promenade.\n Stardew Valley est peut-être passé en 1997.\n\n" +
+      " Vous avez appuyé sur NE PAS UTILISER.\n Un sushi a disparu quelque part dans le multivers.\n Nezuko attend toujours sa promenade.\n Stardew Valley n'a jamais existé.\n\n" +
       " APPUYEZ SUR UNE TOUCHE POUR REDEMARRER (SI LE TEMPS EXISTE ENCORE)<span class=\"cursor\">_</span>");
     crashReady = true;
   }
@@ -301,6 +359,20 @@
       beep(440, 40); draw(); return;
     }
     if (k === "Escape") { beep(330, 60); go("menu"); return; }
+    if (scr === "care") {
+      if (cmode === "ball") {
+        if (ball.done) { if (k === "Enter") { cmode = "menu"; ci = 0; } else return; }
+        else if (k === "Enter" || k === " ") hitBall();
+        else return;
+        draw(); return;
+      }
+      var A = cacts();
+      if (k === "ArrowDown") ci = (ci + 1) % A.length;
+      else if (k === "ArrowUp") ci = (ci + A.length - 1) % A.length;
+      else if (k === "Enter") { doAct(A[ci]); draw(); return; }
+      else return;
+      beep(440, 30); draw(); return;
+    }
     if (scr === "nav") {
       if (k === "ArrowLeft") nf = (nf + 5) % 6;
       else if (k === "ArrowRight") nf = (nf + 1) % 6;
@@ -324,27 +396,6 @@
       else return;
       st = ""; beep(440, 40); draw(); return;
     }
-    if (scr === "games") { if (k === "Enter" || k === "1") { beep(880, 80); go("game"); } return; }
-    if (scr === "care") {
-      if (cm === "rhythm") {
-        if (k === " ") {
-          if (rx >= 12 && rx <= 15) { rs++; beep(1000, 80); } else beep(160, 120, "sawtooth");
-          rr++;
-          if (rr > 6) { joy = Math.min(100, joy + rs * 6); cmsg = "Balle : " + rs + "/6 ! Nezuko est ravie."; cm = "menu"; nzs = "ball"; }
-          draw();
-        }
-        return;
-      }
-      if (k === "1") { hunger = Math.min(100, hunger + 30); cmsg = "Miam ! Nezuko a dévoré sa gamelle."; beep(700, 80); }
-      else if (k === "2") { cm = "rhythm"; rx = 0; rdx = 1; rr = 1; rs = 0; beep(880, 80); }
-      else if (k === "3") { joy = Math.min(100, joy + 8); cmsg = "Nezuko adore les câlins <3"; nzs = "sit"; nzForce = false; beep(600, 60); }
-      else if (k === "4") {
-        if (nzs === "sleep") { nzs = "sit"; nzForce = false; cmsg = "Nezuko se réveille en s'étirant."; }
-        else { nzs = "sleep"; nzForce = true; cmsg = "Nezuko s'endort... zZz"; }
-        beep(400, 80);
-      } else return;
-      draw(); return;
-    }
     if (scr === "pw") {
       if (k === "Backspace") pwb = pwb.slice(0, -1);
       else if (k === "Enter") {
@@ -366,45 +417,139 @@
 
   // ---------- Extras ----------
   var DOG = ["    /^-----^\\", "    V  o o  V", "     |  Y  |", "      \\ Q /", "      / - \\"].join("\n") + "\n";
+  var FONT = {
+    "D": ["###  ", "#  # ", "#  # ", "#  # ", "###  "], "O": [" ##  ", "#  # ", "#  # ", "#  # ", " ##  "],
+    "R": ["###  ", "#  # ", "###  ", "# #  ", "#  # "], "Y": ["#   #", " # # ", "  #  ", "  #  ", "  #  "],
+    "P": ["###  ", "#  # ", "###  ", "#    ", "#    "], "J": ["  ## ", "   # ", "   # ", "#  # ", " ##  "],
+    "E": ["#### ", "#    ", "###  ", "#    ", "#### "], "C": [" ### ", "#    ", "#    ", "#    ", " ### "],
+    "T": ["#####", "  #  ", "  #  ", "  #  ", "  #  "], ".": ["  ", "  ", "  ", "  ", "# "]
+  };
+  function big(s) {
+    var rows = ["", "", "", "", ""];
+    s.split("").forEach(function (c) { for (var i = 0; i < 5; i++) rows[i] += FONT[c][i] + " "; });
+    return rows.join("\n");
+  }
+  var TITLE = big("D.O.R.Y") + "\n\n" + big("PROJECT") + "\n";
+  var COTTON = ["      .-~~~-.", "    .' ~  ~ '.", "   (  ~  ~  ~  )", "    '. ~  ~ .'", "      '-.__.-'", "         ||", "         ||", "         ||", "     (barbe a papa)"].join("\n") + "\n";
+  var SUSHI = ["     .-~~~~~~~-.", "    (   saumon   )", "   (_____________)", "   |=============|", "   '-------------'"].join("\n") + "\n";
+  var ARTS = [DOG, TITLE, COTTON, SUSHI], art = DOG;
+  function pickArt() { art = ARTS[Math.random() * ARTS.length | 0]; }
+  pickArt();
   var BDAY_MSG = "Joyeux 33 ans Dory, tu es la meilleure des rencontres que j'ai pu faire, merci pour tout !";
   var NOTES = [262, 262, 294, 262, 349, 330, 262, 262, 294, 262, 392, 349];
   var idle = Date.now(), jdone = false, pwb = "";
-  function al() { return ""; }
   function pwBox() {
     return box("ACCES RESTREINT", [{ t: "" }, { t: "COMMANDE INTERDITE. AUTHENTIFICATION REQUISE." }, { t: "" }, { t: "MOT DE PASSE : " + "*".repeat(pwb.length) + "_" }, { t: "" },
       { t: "indice : j'ai quatre pattes et je ressemble à un boudin de porte" }, { t: "" }, { t: "> " + (st || "ENTREE : VALIDER    ECHAP : RETOUR") }], W);
   }
-  // Nezuko tamagotchi
-  var nz = 0, nd = 1, nph = 0, nzs = "walk", nzForce = false, nt = 0, hunger = 80, joy = 70, cm = "menu", cmsg = "", rx = 0, rdx = 1, rr = 1, rs = 0;
-  var NPH = ["Promenade de Nezuko en cours", "Nezuko renifle un sushi", "Nezuko demande une barbe à papa", "Nezuko a trouvé un câble rose", "Nezuko surveille la machine"];
-  var NST = { sit: "Nezuko est assise et observe la machine", groom: "Nezuko fait sa toilette", ball: "Nezuko joue à la balle", sleep: "Nezuko dort... zZz" };
-  function nezStep() {
-    nt++;
-    if (nt % 6 === 0) { hunger = Math.max(0, hunger - (nzs === "sleep" ? 1 : 3)); joy = Math.max(0, joy - (nzs === "sleep" ? 0 : 2)); }
-    if (!nzForce && scr !== "care" && nt % 7 === 0) nzs = ["walk", "walk", "sit", "groom", "ball", "sleep"][Math.random() * 6 | 0];
-    if (nzs === "walk") { nz += nd; if (nz >= 24 || nz <= 0) { nd = -nd; nph = (nph + 1) % NPH.length; } }
+
+  // ---------- Nezuko : encart + entretien ----------
+  var NZ = { h: 70, j: 70, c: 70, sl: false };
+  var cmode = "menu", ci = 0, cmsg = "", cfx = 0;
+  var ball = { p: 0, d: 1, n: 0, pts: 0, last: "", done: false };
+  var BALLS = 8, TR = 31, ZC = 15;
+  var cl = function (v) { return Math.max(0, Math.min(100, v)); };
+  // Statuts (38 caracteres maximum pour tenir dans l'encart du menu)
+  var nz = 0, nd = 1, nph = 0, NPH = [
+    "Promenade de Nezuko en cours", "Nezuko renifle un sushi", "Nezuko demande une barbe à papa", "Nezuko a trouvé un câble rose",
+    "Nezuko surveille la machine", "Nezuko court après sa queue", "Nezuko joue avec un noeud rose", "Nezuko vole une chaussette rose",
+    "Nezuko creuse pour les Junimos", "Nezuko rêve de barbe à papa", "Nezuko poursuit un maki qui roule", "Nezuko mordille Hello Kitty",
+    "Nezuko vole un sushi (saumon)", "Nezuko a piqué la manette", "Nezuko cherche un panais à Stardew", "Nezuko fait des bêtises. Encore.",
+    "Nezuko a enterré un sushi", "Nezuko fait la sieste sur le canapé", "Nezuko se roule dans le rose", "Nezuko aboie sur un Junimo",
+    "Nezuko attend une gaufre rose", "Nezuko fait les yeux doux", "Nezuko mâchouille un câble (non !)", "Nezuko rapporte un bâton rose",
+    "Nezuko fait la belle pour un sushi", "Nezuko tourne en rond, très sérieuse", "Nezuko renverse la soupe Overcooked", "Nezuko se cache sous le canapé",
+    "Nezuko secoue une peluche rose", "Nezuko boude : elle veut sa promenade"];
+  var SLP = ["Nezuko dort. zZz", "Nezuko rêve de sushis... zZz", "Nezuko ronfle doucement. zZz"];
+  function nezStep() { if (NZ.sl) return; nz += nd; if (nz >= 32 || nz <= 0) nd = -nd; }
+  function nezPhrase() {
+    if (NZ.sl) return SLP[nph % SLP.length];
+    if (NZ.h < 20) return "Nezuko a faim !";
+    if (NZ.j < 20) return "Nezuko s'ennuie...";
+    if (NZ.c < 20) return "Nezuko est toute sale.";
+    return NPH[nph % NPH.length];
   }
-  function nezSprite() {
-    var pad = " ".repeat(nz), f = nt % 2;
-    if (nzs === "walk") return pad + (nd > 0 ? "~^(o.o)^" : "^(o.o)^~");
-    if (nzs === "sit") return pad + "^(o.o)^ " + (f ? "<3" : "");
-    if (nzs === "groom") return pad + (f ? "^(-o-)^ *lick*" : "^(-.-)^ *lick*");
-    if (nzs === "ball") return pad + "^(o.o)^" + " ".repeat(f ? 6 : 3) + "o";
-    return pad + "^(-.-)^ " + (f ? "zZz" : "zz");
+  // Sprite unique de Nezuko, partage par le menu et l'entretien
+  function dogSprite() {
+    var e = NZ.sl ? "-.-" : (Date.now() - cfx < 2000 ? "^.^" : "o.o");
+    return nd > 0 ? "~^(" + e + ")^" : "^(" + e + ")^~";
   }
-  function nezMsg() { return hunger < 20 ? "Nezuko a faim ! (touche N)" : nzs === "walk" ? NPH[nph] : NST[nzs]; }
+  function nzBars(w) {
+    return [["FAIM", NZ.h], ["JOIE", NZ.j], ["PROPRETE", NZ.c]].map(function (m) {
+      return { t: (m[0] + " :").padEnd(11) + "[" + bar(m[1], w) + "] " + String(m[1]).padStart(3) + "%" };
+    });
+  }
   function nezBox() {
-    return box("NEZUKO.EXE", [{ t: "" }, { t: nezSprite() }, { t: "" }, { t: "> " + nezMsg() }, { t: "FAIM [" + bar(hunger, 10) + "] JOIE [" + bar(joy, 10) + "]" }], 42);
+    var L = [{ t: "" }, { t: " ".repeat(nz) + dogSprite() }, { t: "" }, { t: "> " + nezPhrase(), sel: true }, { t: "" }]
+      .concat(nzBars(20), [{ t: "" }, { t: "N : S'EN OCCUPER" }]);
+    return box("NEZUKO.EXE", L, 42);
   }
-  function rhythmBar() { var b = ""; for (var i = 0; i < 28; i++) b += i === rx ? "o" : (i >= 12 && i <= 15 ? "_" : "."); return "|" + b + "|"; }
+  function cacts() {
+    return NZ.sl ? ["Réveiller Nezuko"] :
+      ["Nourrir Nezuko", "Lancer la balle à Nezuko", "Caresser Nezuko", "Brosser Nezuko", "Endormir Nezuko"];
+  }
+  function doAct(a) {
+    cfx = Date.now();
+    if (a === "Nourrir Nezuko") { NZ.h = cl(NZ.h + 25); cmsg = NZ.h >= 100 ? "Nezuko est rassasiée. Elle prend un sushi quand même." : "Nezuko dévore ses croquettes. Miam !"; beep(700, 80); }
+    else if (a === "Caresser Nezuko") { NZ.j = cl(NZ.j + 12); cmsg = "Nezuko ferme les yeux et en redemande."; beep(900, 80, "triangle"); }
+    else if (a === "Brosser Nezuko") { NZ.c = cl(NZ.c + 25); cmsg = "Nezuko est toute douce et bien coiffée."; beep(600, 80, "triangle"); }
+    else if (a === "Endormir Nezuko") { NZ.sl = true; ci = 0; cmsg = "Nezuko s'endort. Ses jauges ne baissent plus."; beep(300, 300, "triangle"); }
+    else if (a === "Réveiller Nezuko") { NZ.sl = false; ci = 0; cmsg = "Nezuko se réveille en s'étirant."; beep(800, 120, "triangle"); }
+    else if (a === "Lancer la balle à Nezuko") {
+      cmode = "ball"; ball = { p: 0, d: 1, n: 0, pts: 0, last: "", done: false }; beep(880, 80);
+    }
+  }
+  function hitBall() {
+    var dist = Math.abs(ball.p - ZC), g;
+    if (dist <= 1) { g = 10; ball.last = "PARFAIT ! +10"; beep(1200, 80, "triangle"); }
+    else if (dist <= 4) { g = 5; ball.last = "BIEN ! +5"; beep(900, 80, "triangle"); }
+    else { g = 0; ball.last = "RATE... +0"; beep(140, 150, "sawtooth"); }
+    ball.pts += g; ball.n++; ball.p = Math.random() * TR | 0;
+    if (ball.n >= BALLS) {
+      ball.done = true;
+      var gain = Math.round(ball.pts / 2);
+      NZ.j = cl(NZ.j + gain); cfx = Date.now();
+      cmsg = "Partie terminée : joie +" + gain + ".";
+    }
+  }
   function careBox() {
-    var L = [{ t: "" }, { t: nezSprite() }, { t: "" }, { t: "FAIM  [" + bar(hunger, 20) + "] " + hunger + "%" }, { t: "JOIE  [" + bar(joy, 20) + "] " + joy + "%" }, { t: "" }];
-    if (cm === "rhythm") L.push({ t: "JEU DE BALLE : ESPACE QUAND 'o' EST SUR LA ZONE ____" }, { t: rhythmBar() }, { t: "MANCHE " + Math.min(rr, 6) + "/6   REUSSITES : " + rs });
-    else L.push({ t: "1. NOURRIR NEZUKO" }, { t: "2. JOUER A LA BALLE (RYTHME)" }, { t: "3. CARESSER NEZUKO" }, { t: "4. " + (nzs === "sleep" ? "REVEILLER" : "ENDORMIR") + " NEZUKO" }, { t: "" }, { t: "> " + (cmsg || nezMsg()) }, { t: "ECHAP : RETOUR" });
-    return box("ENTRETIEN DE NEZUKO", L, 46);
+    var L = [{ t: "" }, { t: "  " + " ".repeat(nz) + dogSprite() + (NZ.sl ? "  zZz" : "") }, { t: "" },
+      { t: "> " + nezPhrase(), sel: true }, { t: "" }];
+    nzBars(30).forEach(function (b) { L.push(b); });
+    L.push({ t: "" }, { t: "ETAT : " + (NZ.sl ? "ENDORMIE (les jauges ne baissent pas)" : "EVEILLEE") }, { t: "" });
+    cacts().forEach(function (a, i) { L.push({ t: (i === ci ? "> " : "  ") + a, sel: i === ci }); });
+    L.push({ t: "" }, { t: cmsg ? "> " + cmsg : "> EN ATTENTE D'UN ORDRE_" }, { t: "HAUT/BAS : CHOISIR   ENTREE : VALIDER   ECHAP : RETOUR" });
+    return box("ENTRETIEN DE NEZUKO", L, W);
   }
-  setInterval(function () { if (scr === "care" && cm === "rhythm") { rx += rdx; if (rx <= 0 || rx >= 27) rdx = -rdx; if (rx >= 12 && rx <= 15) beep(880, 25); draw(); } }, 110);
-  // Mini-jeu cache (touche 9 dans le menu)
+  function ballBox() {
+    var tr = "";
+    for (var i = 0; i < TR; i++) tr += (i === ball.p && !ball.done) ? "O" : (Math.abs(i - ZC) <= 1 ? "#" : Math.abs(i - ZC) <= 4 ? "=" : "-");
+    var L = [{ t: "" }, { t: "LANCER DE BALLE : " + Math.min(ball.n + (ball.done ? 0 : 1), BALLS) + " / " + BALLS + "     SCORE : " + ball.pts }, { t: "" },
+      { t: "       [" + tr + "]" }, { t: "        " + " ".repeat(ZC - 1) + "^^^" }, { t: "" },
+      { t: ball.done ? "TERMINE ! " + cmsg : "ENTREE ou ESPACE : lancer quand la balle (O) est sur la zone (#)" },
+      { t: "> " + (ball.last || "PRET ?") }, { t: "" },
+      { t: ball.done ? "ENTREE : RETOUR A L'ENTRETIEN" : "ECHAP : ABANDONNER (aucun gain)" }];
+    return box("LANCER LA BALLE A NEZUKO", L, W);
+  }
+  // Les jauges baissent de 1 par minute (a l'arret si Nezuko dort)
+  setInterval(function () {
+    if (NZ.sl) return;
+    NZ.h = cl(NZ.h - 1); NZ.j = cl(NZ.j - 1); NZ.c = cl(NZ.c - 1);
+    if (scr === "care" && cmode === "menu") draw();
+  }, 60000);
+  // Nouveau statut aleatoire toutes les 6 secondes
+  setInterval(function () { nph = (nph + 1 + (Math.random() * (NPH.length - 1) | 0)) % NPH.length; }, 6000);
+  setInterval(function () {
+    if (scr !== "care") return;
+    if (cmode === "ball" && !ball.done) {
+      var step = ball.n >= 5 ? 3 : ball.n >= 2 ? 2 : 1;
+      ball.p += ball.d * step;
+      if (ball.p >= TR - 1) { ball.p = TR - 1; ball.d = -1; }
+      else if (ball.p <= 0) { ball.p = 0; ball.d = 1; }
+      draw();
+    } else if (cmode === "menu") draw();
+  }, 90);
+
+  // Mini-jeu Sushi Catcher (code conserve, non relie au menu pour le moment)
   var GW = 40, GH = 14, gp = 16, gi = [], gs = 0, gl = 3;
   function gameInit() { gp = 16; gi = []; gs = 0; gl = 3; }
   function gameBox() {
@@ -455,16 +600,17 @@
       crt.classList.add("shake"); beep(200 + (6 - i) * 120, 300); await sleep(900);
     }
     crt.classList.remove("shake");
-    for (var j = 0; j < 10; j++) { if (tk !== run) return; crt.classList.toggle("inv", j % 2 === 0); beep(1500 - j * 100, 50, "sawtooth"); await sleep(70); }
+    for (var j = 0; j < 6; j++) { if (tk !== run) return; crt.classList.toggle("inv", j % 2 === 0); beep(1500 - j * 150, 60, "sawtooth"); await sleep(160); }
     crt.classList.remove("inv");
-    if (d === "19/09/2026") { await birthday(tk); jdone = tk === run; return; }
     var ev = DB.filter(function (x) { return x[0] === d; })[0];
+    if (d === "19/09/2026") { await birthday(tk); jdone = tk === run; return; }
     var L = [{ t: "" }, { t: "ARRIVEE : " + target }, { t: "SAUT REUSSI. STABILITE : " + (60 + Math.random() * 39 | 0) + "%" }, { t: "" }];
     wrap(ev ? "EVENEMENT DETECTE : " + ev[1] : dt > now ? "DESTINATION DANS LE FUTUR : aucun sushi n'y est encore prêt." : "AUCUN EVENEMENT CLE A CETTE DATE. Le continuum est calme. Nezuko dort.", W - 4)
       .forEach(function (x) { L.push({ t: x }); });
-    if (MSG[d]) { L.push({ t: "" }); wrap("« " + MSG[d] + " »", W - 4).forEach(function (x) { L.push({ t: x }); }); }
+    if (ev && MSG[d]) { L.push({ t: "" }); wrap("MESSAGE : " + MSG[d], W - 4).forEach(function (x) { L.push({ t: x }); }); }
     L.push({ t: "" }, { t: "TOUCHE : RETOUR AU MENU" });
-    $("main").innerHTML = P(box("ARRIVEE", L, W)) + photosHtml(d); beep(1000, 200); jdone = true;
+    $("main").innerHTML = P(box("ARRIVEE", L, W)) + (ev ? photosBlock() : ""); beep(1000, 200); jdone = true;
+    if (ev) showPhotos(d, tk);
   }
   async function birthday(tk) {
     var rows = [], ch = "*+.o~'^";
@@ -479,48 +625,17 @@
     var L = [{ t: "" }, { t: "*** JOYEUX ANNIVERSAIRE DORY ! ***" }, { t: target.indexOf("23:19") > -1 ? "23:19 : L'HEURE EXACTE !" : "" }, { t: "" }];
     wrap(BDAY_MSG, W - 4).forEach(function (x) { L.push({ t: x }); });
     L.push({ t: "" }, { t: "TOUCHE : RETOUR AU MENU" });
-    $("main").innerHTML = P(esc(rows.slice(0, 3).join("\n")) + "\n" + box("ANNIVERSAIRE DE DORY", L, W)) + photosHtml("19/09/2026");
+    $("main").innerHTML = P(esc(rows.slice(0, 3).join("\n")) + "\n" + box("ANNIVERSAIRE DE DORY", L, W)) + photosBlock();
+    showPhotos("19/09/2026", tk);
   }
-
-  // ---------- Messages, photos, dessins ----------
-  var MSG = {
-    "15/04/2025": "Le jour où tout a commencé et où j'aimerais tant pouvoir retourner, tout changer, pouvoir passer ma vie aux côtés de Dory.",
-    "17/10/2025": "L'une de mes meilleures décisions, j'ai tellement bien fait de renvoyer un message malgré la culpabilité.",
-    "12/03/2026": "Je me souviens presque davantage de la discussion en bas du bâtiment que du concert lui-même, c'est pour dire !",
-    "26/03/2026": "Le premier Naniwa, je ne sais pas si j'étais plus séduit par les sushis ou par la compagnie...",
-    "16/04/2026": "Le premier Nanimois d'une grande série, je souhaite qu'elle dure pour l'éternité.",
-    "25/04/2026": "L'un de mes meilleurs concerts, un de mes meilleurs souvenirs de 2026 avec Dory.",
-    "02/05/2026": "Bien que ce ne soit pas ma came, c'était trop bien, merci Dory d'ouvrir mes horizons à de nouvelles choses !",
-    "14/05/2026": "Quel plaisir d'avoir pu rencontrer Nezuko, elle est tellement mignonne, intelligente et drôle. On dit que le chien ressemble à son maître !",
-    "19/06/2026": "Un super week-end anti-canicule avec deux baignades que je n'oublierai jamais !",
-    "19/09/2026": "Joyeux 33 ans Dory, tu es la meilleure des rencontres que j'ai pu faire, merci pour tout !",
-    "29/09/2026": "Le lancement du projet d'une vie, celui de pouvoir réparer le passé afin d'avoir le plus beau des futurs."
-  };
-  // PHOTOS : 1 a 3 chemins par date, ex. "15/04/2025": ["photos/rencontre1.jpg", "photos/rencontre2.jpg"]
-  var PH = {};
-  function photosHtml(d) {
-    var a = PH[d] || [];
-    return a.length ? '<div class="photos">' + a.slice(0, 3).map(function (u) { return '<img src="' + esc(u) + '" alt="" onerror="this.remove()">'; }).join("") + "</div>" : "";
-  }
-  var GL = { D: ["#### ", "#   #", "#   #", "#   #", "#### "], O: [" ### ", "#   #", "#   #", "#   #", " ### "], R: ["#### ", "#   #", "#### ", "#  # ", "#   #"], Y: ["#   #", " # # ", "  #  ", "  #  ", "  #  "],
-    ".": ["  ", "  ", "  ", "  ", "# "], P: ["#### ", "#   #", "#### ", "#    ", "#    "], J: ["  ###", "   # ", "   # ", "#  # ", " ##  "], E: ["#####", "#    ", "#### ", "#    ", "#####"],
-    C: [" ####", "#    ", "#    ", "#    ", " ####"], T: ["#####", "  #  ", "  #  ", "  #  ", "  #  "] };
-  function banner() {
-    var out = "";
-    ["D.O.R.Y", "PROJECT"].forEach(function (w) { for (var r = 0; r < 5; r++) { out += "  "; w.split("").forEach(function (c) { out += GL[c][r] + " "; }); out += "\n"; } out += "\n"; });
-    return out;
-  }
-  var CANDY = ["      .-~~~-.", "    .'~ ~ ~ '.", "   ( ~ ~ ~ ~ ~ )", "    '.~ ~ ~ .'", "      '-.-'", "        ||", "        ||", "        ||"].join("\n") + "\n";
-  var SUSHI = ["     _.-------._", "   /~~~~~~~~~~~~~~\\", "  |================|", "   \\______________/"].join("\n") + "\n";
-  var art = "";
-  function pickArt() { art = [DOG, banner(), CANDY, SUSHI][Math.random() * 4 | 0]; }
-  pickArt();
 
   // ---------- Timers ----------
-  function randomize() { metrics.forEach(function (m) { m[1] = Math.floor(Math.random() * 101); }); if (scr === "menu") { draw(); } }
+  function randomize() { metrics.forEach(function (m) { m[1] = Math.floor(Math.random() * 101); }); if (scr === "menu") draw(); }
   setInterval(randomize, 5000);
-  setInterval(function () { if (scr === "menu" || scr === "care") { nezStep(); if (cm !== "rhythm" || scr === "menu") draw(); } }, 1000);
+  setInterval(function () { if (scr === "menu") { nezStep(); draw(); } else if (scr === "care") nezStep(); }, 1000);
   setInterval(function () { if (scr === "logs") { addLog(); draw(); } }, 900);
+  // Precharge des photos (pour l'indicateur dans la base de donnees)
+  DB.forEach(function (x) { findPhotos(x[0]).then(function () { if (scr === "db") draw(); }); });
   draw();
 })();
 </script>
