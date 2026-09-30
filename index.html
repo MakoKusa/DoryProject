@@ -27,6 +27,20 @@
   #lb { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.95); color: var(--fg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: zoom-out; padding: 12px; box-sizing: border-box; }
   #lb img { max-width: 92vw; max-height: 80vh; border: 2px solid var(--fg); padding: 6px; background: var(--bg); }
   #lb .lbcap { font-size: 14px; text-align: center; }
+  /* Particules : petales de fleurs, uniquement en theme rose avec l'option "particules" sur ON */
+  #petals { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 5; display: none; }
+  html.pink.parts #petals { display: block; }
+  .petal { position: absolute; top: 0; left: var(--x); width: var(--s); height: calc(var(--s) * 1.35);
+    background: radial-gradient(ellipse at 30% 30%, #ffe3f2, #ff8fcb 70%); border-radius: 100% 0 100% 0;
+    filter: drop-shadow(0 0 3px rgba(255,120,200,.6)); will-change: transform;
+    animation: petalfall var(--d) linear infinite; animation-delay: var(--dl); }
+  @keyframes petalfall {
+    0%   { transform: translate(0, -40px) rotate(0deg); }
+    25%  { transform: translate(calc(var(--a) * 1px), 25vh) rotate(100deg); }
+    50%  { transform: translate(calc(var(--a) * -0.6px), 52vh) rotate(210deg); }
+    75%  { transform: translate(calc(var(--a) * 0.9px), 78vh) rotate(300deg); }
+    100% { transform: translate(calc(var(--a) * -0.3px), 108vh) rotate(400deg); }
+  }
   @keyframes blink { 50% { opacity: 0; } }
   @keyframes flick { 0%,100% { opacity: 1; } 91% { opacity: .95; } 93% { opacity: .82; } 95% { opacity: .98; } }
   @keyframes shake { 25% { transform: translate(-7px,3px); } 50% { transform: translate(6px,-4px); } 75% { transform: translate(-3px,-7px); } }
@@ -34,7 +48,11 @@
   #crt.shake { animation: shake .08s infinite; }
   #crt.crtoff { animation: crtoff .8s forwards; }
   #crt.inv { filter: invert(1) brightness(.35); }
-  @media (prefers-reduced-motion: reduce) { #crt, .cursor { animation: none; } #crt.inv { filter: none; } }
+  /* Option "effets reduits" : plus de scintillement, de clignotement, de tremblement, d'inversion ni de petales */
+  html.calm #crt, html.calm .cursor { animation: none; }
+  html.calm #crt.inv { filter: none; }
+  html.calm #petals { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { #crt, .cursor { animation: none; } #crt.inv { filter: none; } #petals { display: none !important; } }
 </style>
 </head>
 <body>
@@ -53,23 +71,64 @@
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
   var P = function (s) { return "<pre>" + s + "</pre>"; };
   var W = 78;
+  var cl = function (v) { return Math.max(0, Math.min(100, v)); };
+
+  // ---------- Memoire du navigateur (localStorage) ----------
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+  function volLoad(k) { var v = parseInt(store.get(k), 10); return isNaN(v) ? 100 : cl(v); }
+
+  // ---------- Reglages ----------
+  var muted = store.get("mop_sound") === "off";      // bruitages on/off
+  var sfxVol = volLoad("mop_vol_s");                 // volume des bruitages (0-100)
+  var musVol = volLoad("mop_vol_m");                 // volume de la musique (0-100)
+  var pink = store.get("mop_theme") !== "normal";    // theme ROSE par defaut (classique seulement si choisi)
+  var particles = store.get("mop_particles") !== "off";   // petales en theme rose (ON par defaut)
+  var authed = store.get("mop_auth") === "1";
+  var rs = store.get("mop_reduced");                 // effets reduits (par defaut : preference du systeme)
+  var reduced = rs === null ? !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) : rs === "on";
+  document.documentElement.classList.toggle("pink", pink);
+  document.documentElement.classList.toggle("parts", particles);
+  document.documentElement.classList.toggle("calm", reduced);
+
+  // ---------- Petales (visibles seulement en theme rose + particules ON + effets non reduits) ----------
+  (function () {
+    var box = document.createElement("div"); box.id = "petals";
+    for (var i = 0; i < 26; i++) {
+      var p = document.createElement("span"); p.className = "petal";
+      p.style.setProperty("--x", (Math.random() * 100).toFixed(1) + "vw");
+      p.style.setProperty("--s", (8 + Math.random() * 9).toFixed(1) + "px");
+      p.style.setProperty("--d", (10 + Math.random() * 10).toFixed(1) + "s");
+      p.style.setProperty("--dl", (-Math.random() * 20).toFixed(1) + "s");
+      p.style.setProperty("--a", ((18 + Math.random() * 42) * (Math.random() < 0.5 ? -1 : 1)).toFixed(0));
+      p.style.opacity = (0.5 + Math.random() * 0.4).toFixed(2);
+      box.appendChild(p);
+    }
+    document.body.appendChild(box);
+  })();
 
   // ---------- Son ----------
-  var ac, muted = false;   // muted : bruitages
+  var ac;
   function getAC() {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     if (ac.state === "suspended") ac.resume();
     return ac;
   }
   function beep(f, d, type) {
-    if (muted) return;
+    if (muted || sfxVol <= 0) return;
+    if (scr === "care" && cmode === "menu") return;   // menu de Nezuko : pas de bips, pour mieux entendre ses bruits
     try {
       var c = getAC();
       var o = c.createOscillator(), g = c.createGain();
-      o.type = type || "square"; o.frequency.value = f; g.gain.value = 0.04;
+      o.type = type || "square"; o.frequency.value = f; g.gain.value = 0.04 * sfxVol / 100;
       o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d / 1000);
     } catch (e) {}
   }
+  // Effets visuels (ignores en mode "effets reduits")
+  function fxAdd(c) { if (!reduced) crt.classList.add(c); }
+  function fxToggle(c, on) { if (!reduced) crt.classList.toggle(c, on); }
 
   // ---------- Cadres ASCII ----------
   // ligne : {t: texte brut, h: html optionnel de meme longueur, sel: inverse}
@@ -99,30 +158,36 @@
   // ---------- Etat ----------
   var DEF = "14/04/2025 - 20:00:00", target = DEF;
   var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false;
-  // Memoire du navigateur (localStorage) : theme, acces deja valide, musique, sons
-  var store = {
-    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  };
   var LOGIN_PWD = "SUSHI", lgb = "";
-  var pink = store.get("mop_theme") === "pink", authed = store.get("mop_auth") === "1";
-  muted = store.get("mop_sound") === "off";
-  document.documentElement.classList.toggle("pink", pink);
 
-  // ---------- Options (sons, musique, theme) ----------
-  var oi = 0;
+  // ---------- Options ----------
+  var oi = 0, OPT_N = 7;
   function toggleSound() { muted = !muted; store.set("mop_sound", muted ? "off" : "on"); }
   function toggleTheme() {
     pink = !pink; document.documentElement.classList.toggle("pink", pink); store.set("mop_theme", pink ? "pink" : "normal");
   }
-  function toggleOpt(i) {
+  function toggleParticles() {
+    particles = !particles; document.documentElement.classList.toggle("parts", particles); store.set("mop_particles", particles ? "on" : "off");
+  }
+  function toggleReduced() {
+    reduced = !reduced; document.documentElement.classList.toggle("calm", reduced); store.set("mop_reduced", reduced ? "on" : "off");
+    if (reduced) crt.classList.remove("shake", "inv", "crtoff");
+  }
+  // 0 sons, 1 volume sons, 2 musique, 3 volume musique, 4 theme, 5 particules, 6 effets reduits
+  function optAdj(i, d) {
     if (i === 0) { toggleSound(); beep(700, 60); }
-    else if (i === 1) toggleMusic();
-    else toggleTheme();
+    else if (i === 1) { sfxVol = cl(sfxVol + d * 10); store.set("mop_vol_s", String(sfxVol)); beep(700, 80); }
+    else if (i === 2) toggleMusic();
+    else if (i === 3) { musVol = cl(musVol + d * 10); store.set("mop_vol_m", String(musVol)); applyMusic(0.3); }
+    else if (i === 4) toggleTheme();
+    else if (i === 5) toggleParticles();
+    else toggleReduced();
   }
 
   // ---------- Musique d'ambiance (generee, aucun fichier) ----------
   var mus = { on: store.get("mop_music") !== "off", ready: false, bus: null };
+  function musTarget() { return mus.on ? 0.9 * musVol / 100 : 0; }
+  function applyMusic(tc) { if (mus.ready) mus.bus.gain.setTargetAtTime(musTarget(), ac.currentTime, tc); }
   // Accords doux et planants (Do maj9 / La min9 / Fa maj9 / Sol sus), 8 s chacun
   var CHORDS = [
     [130.81, 196.00, 293.66, 329.63],
@@ -175,13 +240,13 @@
       master.connect(lp); lp.connect(c.destination);
       lp.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(wet); wet.connect(c.destination);
       mus.bus = master; mus.ready = true;
-      master.gain.setTargetAtTime(mus.on ? 0.9 : 0, c.currentTime, 1.5);
+      master.gain.setTargetAtTime(musTarget(), c.currentTime, 1.5);
       nextChord(0); nextBell();
     } catch (e) {}
   }
   function toggleMusic() {
     mus.on = !mus.on; store.set("mop_music", mus.on ? "on" : "off");
-    if (mus.ready) mus.bus.gain.setTargetAtTime(mus.on ? 0.9 : 0, ac.currentTime, 0.5);
+    applyMusic(0.5);
   }
 
   // sq : prompt "saut temporel maintenant ?" (ecrans db et nav), syes : reponse selectionnee
@@ -315,10 +380,19 @@
     return box("PANNEAU DE CONTROLE", L, 44);
   }
   function optBox() {
-    var rows = [["SONS", muted ? "OFF" : "ON"], ["MUSIQUE", mus.on ? "ON" : "OFF"], ["THEME", pink ? "ROSE" : "CLASSIQUE"]];
+    var rows = [
+      ["SONS", "[ " + (muted ? "OFF" : "ON") + " ]"],
+      ["VOLUME SONS", "[" + bar(sfxVol, 10) + "] " + String(sfxVol).padStart(3) + "%"],
+      ["MUSIQUE", "[ " + (mus.on ? "ON" : "OFF") + " ]"],
+      ["VOLUME MUSIQUE", "[" + bar(musVol, 10) + "] " + String(musVol).padStart(3) + "%"],
+      ["THEME", "[ " + (pink ? "ROSE" : "CLASSIQUE") + " ]"],
+      ["PARTICULES", "[ " + (particles ? "ON" : "OFF") + " ]"],
+      ["EFFETS REDUITS", "[ " + (reduced ? "ON" : "OFF") + " ]"]
+    ];
     var L = [{ t: "" }];
-    rows.forEach(function (r, i) { L.push({ t: (i === oi ? "> " : "  ") + r[0].padEnd(9) + ": [ " + r[1] + " ]", sel: i === oi }); });
-    L.push({ t: "" }, { t: "HAUT/BAS : CHOISIR   ENTREE, GAUCHE OU DROITE : BASCULER" },
+    rows.forEach(function (r, i) { L.push({ t: (i === oi ? "> " : "  ") + r[0].padEnd(15) + ": " + r[1], sel: i === oi }); });
+    L.push({ t: "" }, { t: "HAUT/BAS : CHOISIR   GAUCHE/DROITE : REGLER" }, { t: "ENTREE : BASCULER (ON/OFF, THEME, EFFETS)" },
+      { t: "PARTICULES : PETALES EN THEME ROSE UNIQUEMENT" }, { t: "(MASQUEES SI EFFETS REDUITS = ON)" },
       { t: "RACCOURCIS : S = SONS   M = MUSIQUE   T = THEME" }, { t: "ECHAP : RETOUR" });
     return box("OPTIONS", L, 62);
   }
@@ -434,7 +508,10 @@
     if (s === "para") { pl = []; pp = 0; }
     if (s === "pw") pwb = "";
     if (s === "game") gameInit();
-    if (s === "care") { cmode = "menu"; ci = 0; cmsg = ""; }
+    if (s === "care") {
+      cmode = "menu"; ci = 0; cmsg = "";
+      setTimeout(function () { if (scr === "care") nezVoice(NZ.sl ? "snore" : "yip"); }, 350);   // Nezuko salue
+    }
     draw();
   }
 
@@ -457,19 +534,21 @@
   async function shut() {
     scr = "shut"; var tk = ++run; setBare();
     if (!(await typeLines(SHUT, 700, tk))) return;
-    await sleep(900); crt.classList.add("crtoff"); beep(180, 700, "sawtooth"); await sleep(850);
-    crt.classList.remove("crtoff"); scr = "off"; setBare(); draw();
+    await sleep(900);
+    if (!reduced) { crt.classList.add("crtoff"); beep(180, 700, "sawtooth"); await sleep(850); crt.classList.remove("crtoff"); }
+    else { beep(180, 400, "sine"); await sleep(300); }
+    scr = "off"; setBare(); draw();
   }
   async function crash() {
-    scr = "crash"; crashReady = false; var tk = ++run; setBare(); crt.classList.add("shake");
-    var ch = "▓▒░█#@%&$?!/\\01";
-    for (var i = 0; i < 40; i++) {
+    scr = "crash"; crashReady = false; var tk = ++run; setBare(); fxAdd("shake");
+    var ch = "▓▒░█#@%&$?!/\\01", frames = reduced ? 6 : 40, delay = reduced ? 260 : 60, dens = reduced ? 0.12 : 0.35;
+    for (var i = 0; i < frames; i++) {
       var g = "";
-      for (var r = 0; r < 24; r++) { for (var c = 0; c < W + 2; c++) g += Math.random() < 0.35 ? ch[Math.random() * ch.length | 0] : " "; g += "\n"; }
-      $("main").innerHTML = P(esc(g)); crt.classList.toggle("inv", i % 10 === 5);
-      beep(80 + Math.random() * 900, 50, "sawtooth"); await sleep(60);
+      for (var r = 0; r < 24; r++) { for (var c = 0; c < W + 2; c++) g += Math.random() < dens ? ch[Math.random() * ch.length | 0] : " "; g += "\n"; }
+      $("main").innerHTML = P(esc(g)); fxToggle("inv", i % 10 === 5);
+      beep(80 + Math.random() * 900, 50, "sawtooth"); await sleep(delay);
     }
-    crt.classList.remove("shake"); crt.classList.add("inv");
+    crt.classList.remove("shake"); fxAdd("inv");
     $("main").innerHTML = P("\n *** ERREUR FATALE 0x14042025 ***\n\n CONTINUUM ESPACE-TEMPS : DETRUIT\n PARADOXE : 100%   CAUSALITE : 0%   STABILITE : ???\n\n" +
       " Vous avez appuyé sur NE PAS UTILISER.\n Un sushi a disparu quelque part dans le multivers.\n Nezuko attend toujours sa promenade.\n Stardew Valley n'a jamais existé.\n\n" +
       " APPUYEZ SUR UNE TOUCHE POUR REDEMARRER (SI LE TEMPS EXISTE ENCORE)<span class=\"cursor\">_</span>");
@@ -518,7 +597,7 @@
     if (scr === "menu") {
       if (k === "ArrowDown") cur = (cur + 1) % IT.length;
       else if (k === "ArrowUp") cur = (cur + IT.length - 1) % IT.length;
-      else if (k === "n" || k === "N") { beep(880, 80); go("care"); return; }
+      else if (k === "n" || k === "N") { go("care"); return; }
       else if (k === "o" || k === "O") { beep(880, 80); go("opt"); return; }
       else if (k === "t" || k === "T") { toggleTheme(); beep(pink ? 1100 : 500, 100, "triangle"); draw(); return; }
       else if (/^[0-9]$/.test(k)) {
@@ -526,7 +605,7 @@
         if (ix < 0) return;
         cur = ix;
       }
-      else if (k === "Enter") { beep(880, 80); var s = IT[cur][1]; if (s === "shut") shut(); else go(s); return; }
+      else if (k === "Enter") { var s = IT[cur][1]; if (s !== "care") beep(880, 80); if (s === "shut") shut(); else go(s); return; }
       else return;
       beep(440, 40); draw(); return;
     }
@@ -534,14 +613,16 @@
       if ((scr === "db" || scr === "nav") && sq) { sq = false; beep(330, 60); draw(); return; }
       beep(330, 60); go("menu"); return;
     }
-    // Menu Options : sons, musique, theme
+    // Menu Options : sons, volumes, musique, theme, particules, effets reduits
     if (scr === "opt") {
-      if (k === "ArrowDown") oi = (oi + 1) % 3;
-      else if (k === "ArrowUp") oi = (oi + 2) % 3;
-      else if (k === "Enter" || k === " " || k === "ArrowLeft" || k === "ArrowRight") toggleOpt(oi);
+      if (k === "ArrowDown") { oi = (oi + 1) % OPT_N; beep(440, 30); }
+      else if (k === "ArrowUp") { oi = (oi + OPT_N - 1) % OPT_N; beep(440, 30); }
+      else if (k === "ArrowLeft") optAdj(oi, -1);
+      else if (k === "ArrowRight") optAdj(oi, 1);
+      else if ((k === "Enter" || k === " ") && [0, 2, 4, 5, 6].indexOf(oi) >= 0) optAdj(oi, 1);
       else if (k === "t" || k === "T") toggleTheme();
       else return;
-      beep(440, 30); draw(); return;
+      draw(); return;
     }
     // Prompt "saut temporel maintenant ?" (Saut temporel et Navigation libre)
     if ((scr === "db" || scr === "nav") && sq) {
@@ -636,13 +717,109 @@
   }
 
   // ---------- Nezuko : encart + entretien ----------
-  // Jauges de depart aleatoires a chaque chargement : entre 30 et 90 %, independantes
-  var startGauge = function () { return 30 + (Math.random() * 61 | 0); };
-  var NZ = { h: startGauge(), j: startGauge(), c: startGauge(), sl: false };
+  // Chaque minute, chaque jauge baisse independamment d'un entier aleatoire entre 1 et 5 (a l'arret si Nezuko dort)
+  function drop() { return 1 + (Math.random() * 5 | 0); }
+  // Sauvegarde : etat memorise dans le navigateur, avec rattrapage limite pendant l'absence
+  var AWAY_MAX_MIN = 15, AWAY_FLOOR = 10;
+  function loadNZ() {
+    var s = null;
+    try { s = JSON.parse(store.get("mop_nz")); } catch (e) {}
+    if (!s || typeof s.h !== "number" || typeof s.j !== "number" || typeof s.c !== "number") {
+      var r = function () { return 30 + (Math.random() * 61 | 0); };   // premiere visite : 30 a 90 %
+      return { h: r(), j: r(), c: r(), sl: false };
+    }
+    var n = { h: cl(Math.round(s.h)), j: cl(Math.round(s.j)), c: cl(Math.round(s.c)), sl: !!s.sl };
+    if (!n.sl && typeof s.t === "number") {
+      var mins = Math.max(0, Math.min(AWAY_MAX_MIN, Math.floor((Date.now() - s.t) / 60000)));
+      var away = function (v) { var x = v; for (var i = 0; i < mins; i++) x -= drop(); return Math.max(Math.min(v, AWAY_FLOOR), cl(x)); };
+      n.h = away(n.h); n.j = away(n.j); n.c = away(n.c);
+    }
+    return n;
+  }
+  var NZ = loadNZ();
+  function saveNZ() { store.set("mop_nz", JSON.stringify({ h: NZ.h, j: NZ.j, c: NZ.c, sl: NZ.sl, t: Date.now() })); }
+  saveNZ();
+  window.addEventListener("beforeunload", saveNZ);
+  document.addEventListener("visibilitychange", function () { if (document.hidden) saveNZ(); });
+
+  // ---------- Voix de Nezuko (petits bruits de Spitz nain, synthetises) ----------
+  var VOICE_TXT = { yip: "Wouaf !", yipyip: "Yip yip !", wuf: "Wouf !", growl: "Grrr...", whine: "Ouiiin...", snore: "zZz...", sigh: "*soupir*" };
+  var sayTxt = "", sayUntil = 0;
+  function dogSnd(kind) {
+    if (muted || sfxVol <= 0) return;
+    try {
+      var c = getAC(), t = c.currentTime + 0.02, v = sfxVol / 100;
+      var env = function (g, peak, a, d, t0) {
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak * v), t0 + a);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + a + d);
+      };
+      // Jappement aigu : dent de scie qui chute en hauteur, filtre nasal
+      var yip = function (t0, f0, d) {
+        var o = c.createOscillator(), bp = c.createBiquadFilter(), g = c.createGain();
+        o.type = "sawtooth"; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f0 * 0.6, t0 + d);
+        bp.type = "bandpass"; bp.frequency.value = 2100; bp.Q.value = 1.4;
+        env(g, 0.09, 0.008, d, t0);
+        o.connect(bp); bp.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + 0.05);
+      };
+      // Petit grognement : grave, module en amplitude (roulement), adouci par un filtre
+      var growl = function (t0, dur, f) {
+        var o = c.createOscillator(), lp = c.createBiquadFilter(), am = c.createGain(), lfo = c.createOscillator(), lg = c.createGain(), e = c.createGain();
+        o.type = "sawtooth";
+        o.frequency.setValueAtTime(f, t0); o.frequency.linearRampToValueAtTime(f * 1.15, t0 + dur * 0.5); o.frequency.linearRampToValueAtTime(f * 0.9, t0 + dur);
+        lp.type = "lowpass"; lp.frequency.value = 650; lp.Q.value = 4;
+        am.gain.value = 0.55; lfo.frequency.value = 24; lg.gain.value = 0.45; lfo.connect(lg); lg.connect(am.gain);
+        env(e, 0.13, dur * 0.3, dur * 0.7, t0);
+        o.connect(lp); lp.connect(am); am.connect(e); e.connect(c.destination);
+        o.start(t0); lfo.start(t0); o.stop(t0 + dur + 0.1); lfo.stop(t0 + dur + 0.1);
+      };
+      // Gemissement : sinus qui monte puis redescend, avec vibrato
+      var whine = function (t0, dur) {
+        var o = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+        o.type = "triangle";
+        o.frequency.setValueAtTime(650, t0); o.frequency.linearRampToValueAtTime(980, t0 + dur * 0.55); o.frequency.linearRampToValueAtTime(760, t0 + dur);
+        lfo.frequency.value = 7; lg.gain.value = 22; lfo.connect(lg); lg.connect(o.frequency);
+        env(g, 0.06, dur * 0.25, dur * 0.75, t0);
+        o.connect(g); g.connect(c.destination); o.start(t0); lfo.start(t0); o.stop(t0 + dur + 0.1); lfo.stop(t0 + dur + 0.1);
+      };
+      // Ronflement / soupir : basses douces
+      var soft = function (t0, f1, f2, dur, peak) {
+        var o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain();
+        o.type = "triangle"; o.frequency.setValueAtTime(f1, t0); o.frequency.linearRampToValueAtTime(f2, t0 + dur);
+        lp.type = "lowpass"; lp.frequency.value = 500;
+        env(g, peak, dur * 0.4, dur * 0.6, t0);
+        o.connect(lp); lp.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.1);
+      };
+      var j = function (a, b) { return a + Math.random() * (b - a); };
+      if (kind === "yip") yip(t, j(1000, 1350), j(0.09, 0.13));
+      else if (kind === "yipyip") { yip(t, j(1050, 1350), 0.1); yip(t + 0.17, j(900, 1150), 0.11); }
+      else if (kind === "wuf") yip(t, j(620, 760), 0.16);
+      else if (kind === "growl") growl(t, j(0.5, 0.8), j(95, 130));
+      else if (kind === "whine") whine(t, j(0.45, 0.7));
+      else if (kind === "snore") soft(t, 75, 60, 0.9, 0.09);
+      else if (kind === "sigh") soft(t, 520, 300, 0.7, 0.05);
+    } catch (e) {}
+  }
+  function nezVoice(kind) {
+    sayTxt = VOICE_TXT[kind] || ""; sayUntil = Date.now() + 1600;
+    dogSnd(kind);
+  }
+  // Petits bruits spontanes, uniquement sur l'ecran d'entretien
+  (function ambientNoise() {
+    setTimeout(function () {
+      if (scr === "care" && cmode === "menu") {
+        var r = Math.random();
+        if (NZ.sl) { if (r < 0.6) nezVoice("snore"); }
+        else if (NZ.h < 20 || NZ.j < 20 || NZ.c < 20) nezVoice(r < 0.5 ? "whine" : r < 0.75 ? "yip" : "growl");
+        else nezVoice(r < 0.3 ? "yipyip" : r < 0.55 ? "yip" : r < 0.75 ? "growl" : r < 0.9 ? "wuf" : "whine");
+      }
+      ambientNoise();
+    }, 5000 + Math.random() * 7000);
+  })();
+
   var cmode = "menu", ci = 0, cmsg = "", cfx = 0;
   var ball = { p: 0, d: 1, n: 0, pts: 0, last: "", done: false };
   var BALLS = 8, TR = 31, ZC = 15;
-  var cl = function (v) { return Math.max(0, Math.min(100, v)); };
   // Statuts (38 caracteres maximum pour tenir dans l'encart du menu)
   var nz = 0, nd = 1, nph = 0, NPH = [
     "Promenade de Nezuko en cours", "Nezuko renifle un sushi", "Nezuko demande une barbe à papa", "Nezuko a trouvé un câble rose",
@@ -683,18 +860,19 @@
   }
   function doAct(a) {
     cfx = Date.now();
-    if (a === "Nourrir Nezuko") { NZ.h = cl(NZ.h + 25); cmsg = NZ.h >= 100 ? "Nezuko est rassasiée. Elle prend un sushi quand même." : "Nezuko dévore ses croquettes. Miam !"; beep(700, 80); }
-    else if (a === "Caresser Nezuko") { NZ.j = cl(NZ.j + 12); cmsg = "Nezuko ferme les yeux et en redemande."; beep(900, 80, "triangle"); }
-    else if (a === "Brosser Nezuko") { NZ.c = cl(NZ.c + 25); cmsg = "Nezuko est toute douce et bien coiffée."; beep(600, 80, "triangle"); }
-    else if (a === "Endormir Nezuko") { NZ.sl = true; ci = 0; cmsg = "Nezuko s'endort. Ses jauges ne baissent plus."; beep(300, 300, "triangle"); }
-    else if (a === "Réveiller Nezuko") { NZ.sl = false; ci = 0; cmsg = "Nezuko se réveille en s'étirant."; beep(800, 120, "triangle"); }
+    if (a === "Nourrir Nezuko") { NZ.h = cl(NZ.h + 25); cmsg = NZ.h >= 100 ? "Nezuko est rassasiée. Elle prend un sushi quand même." : "Nezuko dévore ses croquettes. Miam !"; beep(700, 80); nezVoice("yipyip"); }
+    else if (a === "Caresser Nezuko") { NZ.j = cl(NZ.j + 12); cmsg = "Nezuko ferme les yeux et en redemande."; beep(900, 80, "triangle"); nezVoice(Math.random() < 0.5 ? "whine" : "growl"); }
+    else if (a === "Brosser Nezuko") { NZ.c = cl(NZ.c + 25); cmsg = "Nezuko est toute douce et bien coiffée."; beep(600, 80, "triangle"); nezVoice("sigh"); }
+    else if (a === "Endormir Nezuko") { NZ.sl = true; ci = 0; cmsg = "Nezuko s'endort. Ses jauges ne baissent plus."; beep(300, 300, "triangle"); nezVoice("sigh"); }
+    else if (a === "Réveiller Nezuko") { NZ.sl = false; ci = 0; cmsg = "Nezuko se réveille en s'étirant."; beep(800, 120, "triangle"); nezVoice("yip"); }
     else if (a === "Lancer la balle à Nezuko") {
-      cmode = "ball"; ball = { p: 0, d: 1, n: 0, pts: 0, last: "", done: false }; beep(880, 80);
+      cmode = "ball"; ball = { p: 0, d: 1, n: 0, pts: 0, last: "", done: false }; beep(880, 80); nezVoice("yipyip");
     }
+    saveNZ();
   }
   function hitBall() {
     var dist = Math.abs(ball.p - ZC), g;
-    if (dist <= 1) { g = 10; ball.last = "PARFAIT ! +10"; beep(1200, 80, "triangle"); }
+    if (dist <= 1) { g = 10; ball.last = "PARFAIT ! +10"; beep(1200, 80, "triangle"); nezVoice("yip"); }
     else if (dist <= 4) { g = 5; ball.last = "BIEN ! +5"; beep(900, 80, "triangle"); }
     else { g = 0; ball.last = "RATE... +0"; beep(140, 150, "sawtooth"); }
     ball.pts += g; ball.n++; ball.p = Math.random() * TR | 0;
@@ -703,10 +881,13 @@
       var gain = Math.round(ball.pts / 2);
       NZ.j = cl(NZ.j + gain); cfx = Date.now();
       cmsg = "Partie terminée : joie +" + gain + ".";
+      nezVoice("yipyip");
+      saveNZ();
     }
   }
   function careBox() {
-    var L = [{ t: "" }, { t: "  " + " ".repeat(nz) + dogSprite() + (NZ.sl ? "  zZz" : "") }, { t: "" },
+    var say = Date.now() < sayUntil ? "  " + sayTxt : "";
+    var L = [{ t: "" }, { t: "  " + " ".repeat(nz) + dogSprite() + (NZ.sl ? "  zZz" : "") + say }, { t: "" },
       { t: "> " + nezPhrase(), sel: true }, { t: "" }];
     nzBars(30).forEach(function (b) { L.push(b); });
     L.push({ t: "" }, { t: "ETAT : " + (NZ.sl ? "ENDORMIE (les jauges ne baissent pas)" : "EVEILLEE") }, { t: "" });
@@ -724,11 +905,10 @@
       { t: ball.done ? "ENTREE : RETOUR A L'ENTRETIEN" : "ECHAP : ABANDONNER (aucun gain)" }];
     return box("LANCER LA BALLE A NEZUKO", L, W);
   }
-  // Chaque minute, chaque jauge baisse independamment d'un entier aleatoire entre 1 et 5 (a l'arret si Nezuko dort)
-  function drop() { return 1 + (Math.random() * 5 | 0); }
   setInterval(function () {
     if (NZ.sl) return;
     NZ.h = cl(NZ.h - drop()); NZ.j = cl(NZ.j - drop()); NZ.c = cl(NZ.c - drop());
+    saveNZ();
     if (scr === "care" && cmode === "menu") draw();
   }, 60000);
   // Nouveau statut aleatoire toutes les 6 secondes
@@ -793,11 +973,13 @@
     for (var i = 3; i >= 1; i--) {
       if (tk !== run) return;
       $("main").innerHTML = P("\n\n\n          SAUT DANS " + i + "...\n\n          [" + bar((4 - i) / 3 * 100, 20) + "]");
-      crt.classList.add("shake"); beep(200 + (4 - i) * 200, 300); await sleep(1000);
+      fxAdd("shake"); beep(200 + (4 - i) * 200, 300); await sleep(1000);
     }
     crt.classList.remove("shake");
-    for (var j = 0; j < 6; j++) { if (tk !== run) return; crt.classList.toggle("inv", j % 2 === 0); beep(1500 - j * 150, 60, "sawtooth"); await sleep(160); }
-    crt.classList.remove("inv");
+    if (!reduced) {
+      for (var j = 0; j < 6; j++) { if (tk !== run) return; crt.classList.toggle("inv", j % 2 === 0); beep(1500 - j * 150, 60, "sawtooth"); await sleep(160); }
+      crt.classList.remove("inv");
+    } else { beep(1200, 150, "sine"); await sleep(400); }
     var ev = DB.filter(function (x) { return x[0] === d; })[0];
     if (d === "19/09/2026") { await birthday(tk); jdone = tk === run; return; }
     var L = [{ t: "" }, { t: "ARRIVEE : " + target }, { t: "SAUT REUSSI. STABILITE : " + (60 + Math.random() * 39 | 0) + "%" }, { t: "" }];
