@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rewind Machine MoP 3000 Pro Max</title>
 <style>
+  /* Themes : CLASSIQUE, ROSE, AUTOMNE, HIVER, PRINTEMPS, ETE */
   :root { --fg: #fff; --bg: #000; --glow: rgba(255,255,255,.55); }
-  :root.pink { --fg: #ff9ed8; --bg: #1c0012; --glow: rgba(255,105,190,.75); }
+  :root.rose { --fg: #ff9ed8; --bg: #1c0012; --glow: rgba(255,105,190,.75); }
+  :root.autumn { --fg: #ffc06a; --bg: #1c0b03; --glow: rgba(255,137,36,.72); }
+  :root.winter { --fg: #cbefff; --bg: #03111d; --glow: rgba(125,210,255,.75); }
+  :root.spring { --fg: #c9ffb9; --bg: #071809; --glow: rgba(120,255,156,.72); }
+  :root.summer { --fg: #ffd485; --bg: #24061f; --glow: rgba(255,151,63,.78); }
   html, body { margin: 0; background: var(--bg); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   body { font-family: "Courier New", Courier, monospace; font-size: 16px; line-height: 1.25; color: var(--fg); text-shadow: 0 0 4px var(--glow); }
   #crt { position: relative; min-height: 100vh; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; background: var(--bg); overflow-x: auto; animation: flick 5s infinite; }
@@ -43,14 +48,22 @@
   #tbar .tb.wide { max-width: 140px; flex-grow: 2; }
   #tbar .tb.k { padding: 10px 0; font-size: 14px; }
   #tbar .tb:active { background: var(--fg); color: var(--bg); text-shadow: none; }
-  /* Particules : petales de fleurs, uniquement en theme rose avec l'option "particules" sur ON */
+  /* Particules thematiques : seulement avec PARTICULES ON. Classique : aucune particule. */
   #petals { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 5; display: none; }
-  html.pink.parts #petals { display: block; }
-  .petal { position: absolute; top: 0; left: var(--x); width: var(--s); height: calc(var(--s) * 1.35);
-    background: radial-gradient(ellipse at 30% 30%, #ffe3f2, #ff8fcb 70%); border-radius: 100% 0 100% 0;
-    filter: drop-shadow(0 0 3px rgba(255,120,200,.6)); will-change: transform;
-    animation: petalfall var(--d) linear infinite; animation-delay: var(--dl); }
-  @keyframes petalfall {
+  html.parts.rose #petals, html.parts.autumn #petals, html.parts.winter #petals, html.parts.spring #petals, html.parts.summer #petals { display: block; }
+  .particle { position: absolute; top: 0; left: var(--x); width: var(--s); height: calc(var(--s) * 1.25); will-change: transform;
+    animation: fall var(--d) linear infinite; animation-delay: var(--dl); }
+  /* Rose : petales */
+  .rose .particle { background: radial-gradient(ellipse at 30% 30%, #ffe3f2, #ff8fcb 70%); border-radius: 100% 0 100% 0; filter: drop-shadow(0 0 3px rgba(255,120,200,.6)); }
+  /* Automne : feuilles orange, dorees et cuivrees */
+  .autumn .particle { background: var(--pc); border-radius: 100% 0 100% 0; box-shadow: 0 0 4px rgba(255,130,20,.38); }
+  /* Hiver : flocons blancs / bleutes */
+  .winter .particle { width: var(--s); height: var(--s); background: #e5f8ff; border-radius: 50%; box-shadow: 0 0 7px rgba(172,229,255,.9); }
+  /* Printemps : petites fleurs colorees */
+  .spring .particle { width: calc(var(--s) * 1.15); height: calc(var(--s) * 1.15); background: var(--pc); border-radius: 50%; box-shadow: calc(var(--s) * .45) 0 var(--pc), calc(var(--s) * -.45) 0 var(--pc), 0 calc(var(--s) * .45) var(--pc), 0 calc(var(--s) * -.45) var(--pc), 0 0 3px rgba(255,255,190,.85); }
+  /* Ete : etincelles de coucher de soleil */
+  .summer .particle { width: calc(var(--s) * .55); height: calc(var(--s) * .55); background: #ffe4a3; border-radius: 50%; box-shadow: 0 0 8px 3px rgba(255,157,54,.75); }
+  @keyframes fall {
     0%   { transform: translate(0, -40px) rotate(0deg); }
     25%  { transform: translate(calc(var(--a) * 1px), 25vh) rotate(100deg); }
     50%  { transform: translate(calc(var(--a) * -0.6px), 52vh) rotate(210deg); }
@@ -101,12 +114,20 @@
   var sfxVol = volLoad("mop_vol_s");                 // volume des bruitages (0-100)
   var musVol = volLoad("mop_vol_m");                 // volume de la musique (0-100)
   var nzSound = store.get("mop_nzsound") !== "off";  // sons de Nezuko on/off (ON par defaut)
-  var pink = store.get("mop_theme") !== "normal";    // theme ROSE par defaut (classique seulement si choisi)
-  var particles = store.get("mop_particles") !== "off";   // petales en theme rose (ON par defaut)
+  var THEMES = ["classic", "rose", "autumn", "winter", "spring", "summer"];
+  var THEME_LABELS = { classic: "CLASSIQUE", rose: "ROSE", autumn: "AUTOMNE", winter: "HIVER", spring: "PRINTEMPS", summer: "ETE" };
+  // Rose par defaut. Les anciens choix "pink" restent compatibles.
+  var rawTheme = store.get("mop_theme"), theme = THEMES.indexOf(rawTheme) >= 0 ? rawTheme : (rawTheme === "normal" ? "classic" : "rose");
+  var particles = store.get("mop_particles") !== "off";   // particules ON par defaut
   var authed = store.get("mop_auth") === "1";
   var rs = store.get("mop_reduced");                 // effets reduits (par defaut : preference du systeme)
   var reduced = rs === null ? !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) : rs === "on";
-  document.documentElement.classList.toggle("pink", pink);
+  function applyTheme() {
+    THEMES.forEach(function (x) { document.documentElement.classList.remove(x); });
+    document.documentElement.classList.add(theme);
+    store.set("mop_theme", theme);
+  }
+  applyTheme();
   document.documentElement.classList.toggle("parts", particles);
   document.documentElement.classList.toggle("calm", reduced);
 
@@ -128,17 +149,19 @@
     W = w; document.body.style.fontSize = fs.toFixed(1) + "px";
   }
 
-  // ---------- Petales (visibles seulement en theme rose + particules ON + effets non reduits) ----------
+  // ---------- Particules thematiques (masquees si Classique / OFF / effets reduits) ----------
   (function () {
     var box = document.createElement("div"); box.id = "petals";
-    for (var i = 0; i < 26; i++) {
-      var p = document.createElement("span"); p.className = "petal";
+    var colors = ["#ffbc4f", "#e67825", "#a84315", "#eab86b", "#ffb6d9", "#ffe39e", "#a9f4a1", "#ffe095"];
+    for (var i = 0; i < 30; i++) {
+      var p = document.createElement("span"); p.className = "particle";
       p.style.setProperty("--x", (Math.random() * 100).toFixed(1) + "vw");
-      p.style.setProperty("--s", (8 + Math.random() * 9).toFixed(1) + "px");
-      p.style.setProperty("--d", (10 + Math.random() * 10).toFixed(1) + "s");
+      p.style.setProperty("--s", (7 + Math.random() * 10).toFixed(1) + "px");
+      p.style.setProperty("--d", (9 + Math.random() * 12).toFixed(1) + "s");
       p.style.setProperty("--dl", (-Math.random() * 20).toFixed(1) + "s");
-      p.style.setProperty("--a", ((18 + Math.random() * 42) * (Math.random() < 0.5 ? -1 : 1)).toFixed(0));
-      p.style.opacity = (0.5 + Math.random() * 0.4).toFixed(2);
+      p.style.setProperty("--a", ((18 + Math.random() * 48) * (Math.random() < 0.5 ? -1 : 1)).toFixed(0));
+      p.style.setProperty("--pc", colors[Math.random() * colors.length | 0]);
+      p.style.opacity = (0.45 + Math.random() * 0.45).toFixed(2);
       box.appendChild(p);
     }
     document.body.appendChild(box);
@@ -213,9 +236,10 @@
   var oi = 0, OPT_N = 8;
   function toggleSound() { muted = !muted; store.set("mop_sound", muted ? "off" : "on"); }
   function toggleNzSound() { nzSound = !nzSound; store.set("mop_nzsound", nzSound ? "on" : "off"); }
-  function toggleTheme() {
-    pink = !pink; document.documentElement.classList.toggle("pink", pink); store.set("mop_theme", pink ? "pink" : "normal");
+  function changeTheme(d) {
+    var i = THEMES.indexOf(theme); theme = THEMES[(i + d + THEMES.length) % THEMES.length]; applyTheme();
   }
+  function toggleTheme() { changeTheme(1); }
   function toggleParticles() {
     particles = !particles; document.documentElement.classList.toggle("parts", particles); store.set("mop_particles", particles ? "on" : "off");
   }
@@ -230,7 +254,7 @@
     else if (i === 2) { toggleNzSound(); if (nzSound) nezVoice("yip"); }
     else if (i === 3) toggleMusic();
     else if (i === 4) { musVol = cl(musVol + d * 10); store.set("mop_vol_m", String(musVol)); applyMusic(0.3); }
-    else if (i === 5) toggleTheme();
+    else if (i === 5) changeTheme(d || 1);
     else if (i === 6) toggleParticles();
     else toggleReduced();
   }
@@ -448,7 +472,7 @@
       ["SONS NEZUKO", "[ " + (nzSound ? "ON" : "OFF") + " ]"],
       ["MUSIQUE", "[ " + (mus.on ? "ON" : "OFF") + " ]"],
       ["VOLUME MUSIQUE", "[" + bar(musVol, 10) + "] " + String(musVol).padStart(3) + "%"],
-      ["THEME", "[ " + (pink ? "ROSE" : "CLASSIQUE") + " ]"],
+      ["THEME", "[ " + THEME_LABELS[theme] + " ]"],
       ["PARTICULES", "[ " + (particles ? "ON" : "OFF") + " ]"],
       ["EFFETS REDUITS", "[ " + (reduced ? "ON" : "OFF") + " ]"]
     ];
@@ -457,7 +481,10 @@
     L.push({ t: "" }, { t: "HAUT/BAS : CHOISIR   GAUCHE/DROITE : REGLER" }, { t: "ENTREE : BASCULER (ON/OFF, THEME, EFFETS)" },
       { t: "TOUCHER UNE LIGNE : BASCULER (VOLUME : +10 %)" },
       { t: "SONS NEZUKO : BRUITS DE NEZUKO (SUIT SONS ET VOLUME SONS)" },
-      { t: "PARTICULES : PETALES EN THEME ROSE UNIQUEMENT" }, { t: "(MASQUEES SI EFFETS REDUITS = ON)" },
+      { t: "GAUCHE/DROITE SUR THEME : CHANGER D'AMBIANCE" },
+      { t: "AUTOMNE : FEUILLES   HIVER : NEIGE   PRINTEMPS : FLEURS" },
+      { t: "ETE : COUCHER DE SOLEIL   (CLASSIQUE : AUCUNE PARTICULE)" },
+      { t: "(PARTICULES MASQUEES SI EFFETS REDUITS = ON)" },
       { t: "RACCOURCIS : S = SONS   M = MUSIQUE   T = THEME" }, { t: "ECHAP : RETOUR" });
     return box("OPTIONS", L, 62);
   }
@@ -671,7 +698,7 @@
       else if (k === "ArrowUp") cur = (cur + IT.length - 1) % IT.length;
       else if (k === "n" || k === "N") { go("care"); return; }
       else if (k === "o" || k === "O") { beep(880, 80); go("opt"); return; }
-      else if (k === "t" || k === "T") { toggleTheme(); beep(pink ? 1100 : 500, 100, "triangle"); draw(); return; }
+      else if (k === "t" || k === "T") { changeTheme(1); beep(1100, 100, "triangle"); draw(); return; }
       else if (/^[0-9]$/.test(k)) {
         var ix = IT.findIndex(function (x) { return x[0].charAt(0) === k; });
         if (ix < 0) return;
@@ -692,7 +719,7 @@
       else if (k === "ArrowLeft") optAdj(oi, -1);
       else if (k === "ArrowRight") optAdj(oi, 1);
       else if ((k === "Enter" || k === " ") && [0, 2, 3, 5, 6, 7].indexOf(oi) >= 0) optAdj(oi, 1);
-      else if (k === "t" || k === "T") toggleTheme();
+      else if (k === "t" || k === "T") changeTheme(1);
       else return;
       draw(); return;
     }
