@@ -90,7 +90,7 @@
   function bar(p, n) { var k = Math.round(p / 100 * n); return "=".repeat(k) + " ".repeat(n - k); }
 
   // ---------- Etat ----------
-  var DEF = "15/04/2025 - 20:00:00", target = DEF;
+  var DEF = "14/04/2025 - 20:00:00", target = DEF;
   var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false;
   // sq : prompt "saut temporel maintenant ?" (ecrans db et nav), syes : reponse selectionnee
   var f = [], nf = 0, dbi = 0, sq = false, syes = true, logs = [], pl = [], pp = 0;
@@ -98,13 +98,13 @@
     ["4. SIMULATION DE PARADOXE", "para"], ["5. STATISTIQUES", "stats"], ["6. MINI JEUX", "mini"], ["7. D.O.R.Y PROJECT", "proto"],
     ["8. NE PAS UTILISER", "pw"], ["0. ETEINDRE", "shut"]];
   var metrics = [["PUISSANCE", 20], ["STABILITE", 80], ["CAUSALITE", 30], ["PARADOXE", 100], ["SUSHIMETER", 30]];
-  var DB = [["15/04/2025", "Premiers échanges avec DORY"], ["17/10/2025", "Reprise de contact avec DORY"],
+  var DB = [["14/04/2025", "Premiers échanges avec DORY"], ["17/10/2025", "Reprise de contact avec DORY"],
     ["12/03/2026", "Concert de l'Attaque des Titans"], ["26/03/2026", "Premier Naniwa"], ["16/04/2026", "Premier Nanimois"],
     ["25/04/2026", "Concert Clair Obscur : Expedition 33"], ["02/05/2026", "Concert de Lorie"], ["14/05/2026", "Nezuko joined the grotte"],
     ["19/06/2026", "Week-end en Bretagne anti-canicule"], ["19/09/2026", "Anniversaire de Dory à 23h19", "23:19:00"],
     ["29/09/2026", "Lancement du D.O.R.Y PROJECT"]];
   var MSG = {
-    "15/04/2025": "Le jour où tout a commencé et où j'aimerais tant pouvoir retourner, tout changer et réparer mes erreurs, le jour pour lequel le projet de création de la Rewind Machine MoP 3000 Pro Max existe.",
+    "14/04/2025": "Le jour où tout a commencé et où j'aimerais tant pouvoir retourner, tout changer et réparer mes erreurs, le jour pour lequel le projet de création de la Rewind Machine MoP 3000 Pro Max existe.",
     "17/10/2025": "L'une de mes meilleures décisions, j'ai tellement bien fait de renvoyer un message malgré la culpabilité !",
     "12/03/2026": "Je me souviens presque davantage de la discussion en bas du bâtiment post-concert que du concert en lui-même !",
     "26/03/2026": "Le premier Naniwa, je ne sais pas si j'étais plus séduit par les sushis ou par la magnifique compagnie...",
@@ -210,7 +210,7 @@
     "CALIBRAGE DU SUSHIMETER ..... OK", "RECHERCHE DE NEZUKO ......... TROUVEE (ELLE VEUT SORTIR)", "VERIFICATION DU ROSE ........ SUFFISANT", "", "CHARGEMENT DU MENU PRINCIPAL..."];
   var SHUT = ["ARRET DE LA REWIND MACHINE MoP 3000 PRO MAX...", "", "Sauvegarde des lignes temporelles ...... OK", "Refroidissement du condensateur de flux  OK",
     "Nezuko prévenue de l'extinction ........ (elle s'en fiche)", "Sushis restants : 0   Barbe à papa restante : 0", "", "A BIENTOT, DORY.", "N'oublie pas la promenade de Nezuko."];
-  var PROTO = "Le D.O.R.Y PROJECT vise à construire une machine à remonter dans le temps nommée la Rewind Machine MoP 3000 Pro Max afin de ne pas reproduire les erreurs du passé et modifier le futur.\n\nLe D.O.R.Y PROTOCOL vise à remonter le temps à la date clé du 15/04/2025, date à laquelle Dory et Dora se sont échangés leurs premiers messages. Le but est de modifier le passé afin de réécrire un futur dans lequel Dory et Dora vivent leur meilleure vie.\n\nLa machine peut cependant être utilisée pour voyager à d'autres dates dont celles listées dans la section SAUT TEMPOREL.\n\nATTENTION : l'usage de cette machine peut produire une rupture du continuum espace-temps et créer un paradoxe temporel. La section SIMULATION DE PARADOXE est un outil permettant de s'en prémunir (sans garantie).";
+  var PROTO = "Le D.O.R.Y PROJECT vise à construire une machine à remonter dans le temps nommée la Rewind Machine MoP 3000 Pro Max afin de ne pas reproduire les erreurs du passé et modifier le futur.\n\nLe D.O.R.Y PROTOCOL vise à remonter le temps à la date clé du 14/04/2025, date à laquelle Dory et Dora se sont échangés leurs premiers messages. Le but est de modifier le passé afin de réécrire un futur dans lequel Dory et Dora vivent leur meilleure vie.\n\nLa machine peut cependant être utilisée pour voyager à d'autres dates dont celles listées dans la section SAUT TEMPOREL.\n\nATTENTION : l'usage de cette machine peut produire une rupture du continuum espace-temps et créer un paradoxe temporel. La section SIMULATION DE PARADOXE est un outil permettant de s'en prémunir (sans garantie).";
 
   // ---------- Rendu ----------
   function setBare() { crt.classList.toggle("bare", ["menu", "nav", "logs", "db", "para", "proto", "stats", "pw", "game", "mini", "care"].indexOf(scr) < 0); }
@@ -249,7 +249,7 @@
     for (var i = 0; i < 6; i++) { t += "[" + fv(i) + "]" + seps[i]; h += "[" + (i === nf ? '<span class="sel">' + fv(i) + "</span>" : fv(i)) + "]" + seps[i]; }
     var out = box("NAVIGATION LIBRE", [{ t: "" }, { t: "DATE CIBLE ACTUELLE : " + target }, { t: "" }, { t: "NOUVELLE DATE CIBLE (JJ/MM/AAAA - hh:mm:ss) :" },
       { t: "  " + t, h: "  " + h }, { t: "" }, { t: "GAUCHE/DROITE : CHAMP    HAUT/BAS : +/-    CHIFFRES : SAISIE" },
-      { t: "ENTREE : VALIDER    R : REINITIALISER (15/04/2025)    ECHAP : RETOUR" }, { t: "" }, { t: "> " + (st || "EN ATTENTE DE SAISIE_") }], W);
+      { t: "ENTREE : VALIDER    R : REINITIALISER (14/04/2025)    ECHAP : RETOUR" }, { t: "" }, { t: "> " + (st || "EN ATTENTE DE SAISIE_") }], W);
     return sq ? out + "\n\n" + jumpPrompt() : out;
   }
   function logsBox() {
