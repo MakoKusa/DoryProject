@@ -206,7 +206,7 @@
 
   // ---------- Etat ----------
   var DEF = "14/04/2025 - 20:00:00", target = DEF;
-  var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false;
+  var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false, arrival = false;
   var LOGIN_PWD = "SUSHI", lgb = "";
 
   // ---------- Options ----------
@@ -359,7 +359,7 @@
     urls.forEach(function (u, i) {
       var fig = document.createElement("figure"), img = document.createElement("img"), cap = document.createElement("figcaption");
       img.src = u; img.alt = "Souvenir du " + d; img.title = "Cliquer pour agrandir";
-      img.onclick = function (ev) { ev.stopPropagation(); openLb(urls, i, d); };
+      img.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); openLb(urls, i, d); };
       cap.textContent = "PHOTO " + (i + 1) + "/" + urls.length + (CAP[d] && CAP[d][i] ? " - " + CAP[d][i] : "");
       fig.appendChild(img); fig.appendChild(cap); el.appendChild(fig);
     });
@@ -431,7 +431,7 @@
 
   // ---------- Rendu ----------
   function setBare() {
-    crt.classList.toggle("bare", ["menu", "nav", "logs", "db", "para", "proto", "stats", "pw", "game", "mini", "care", "login", "opt"].indexOf(scr) < 0);
+    crt.classList.toggle("bare", ["menu", "nav", "logs", "db", "para", "proto", "stats", "pw", "game", "mini", "care", "login", "opt", "arrival"].indexOf(scr) < 0);
     renderBar();
   }
   function menuBox() {
@@ -566,12 +566,13 @@
     else if (scr === "care") h = P(cmode === "menu" ? careBox() : ballBox());
     else if (scr === "pw") h = P(pwBox());
     else if (scr === "game") h = P(gameBox());
+    else if (scr === "arrival") h = arrival.html;
     else if (scr === "off") h = P(TITLE + '\n\n  [ REWIND MACHINE EN VEILLE ]\n\n  APPUYEZ SUR UNE TOUCHE (OU TOUCHEZ L\'ECRAN) POUR ALLUMER<span class="cursor">_</span>');
     $("main").innerHTML = h;
     renderBar();
   }
   function go(s) {
-    scr = s; run++; st = ""; prun = false; sq = false; setBare();
+    scr = s; run++; st = ""; prun = false; sq = false; arrival = false; setBare();
     if (s === "login") lgb = "";
     if (s === "opt") oi = 0;
     if (s === "nav") { f = target.match(/\d+/g).map(Number); nf = 0; }
@@ -653,6 +654,8 @@
     if (scr === "crash") { if (crashReady) boot(); return; }
     if (scr === "shut") return;
     if (scr === "jump") { if (jdone) go("menu"); return; }
+    // Ecran d'arrivee : seul ECHAP retourne au menu des sauts. Toutes les autres touches sont ignorees.
+    if (scr === "arrival") { if (k === "Escape") go("db"); return; }
     // Mot de passe d'acces au menu principal (insensible a la casse), memorise ensuite dans le navigateur
     if (scr === "login") {
       if (k === "Backspace") lgb = lgb.slice(0, -1);
@@ -1158,8 +1161,9 @@
     wrap(ev ? "EVENEMENT DETECTE : " + ev[1] : dt > now ? "DESTINATION DANS LE FUTUR : aucun sushi n'y est encore prêt." : "AUCUN EVENEMENT CLE A CETTE DATE. Le continuum est calme. Nezuko dort.", W - 4)
       .forEach(function (x) { L.push({ t: x }); });
     if (ev && MSG[d]) { L.push({ t: "" }); wrap("MESSAGE : " + MSG[d], W - 4).forEach(function (x) { L.push({ t: x }); }); }
-    L.push({ t: "" }, { t: "TOUCHE OU ECRAN : RETOUR AU MENU" });
-    $("main").innerHTML = P(box("ARRIVEE", L, W)) + (ev ? photosBlock(d) : ""); beep(1000, 200); jdone = true;
+    L.push({ t: "" }, { t: "ECHAP : RETOUR AU MENU DES SAUTS" });
+    arrival = { html: P(box("ARRIVEE", L, W)) + (ev ? photosBlock(d) : "") };
+    scr = "arrival"; setBare(); $("main").innerHTML = arrival.html; beep(1000, 200); jdone = true;
     if (ev) showPhotos(d, tk);
   }
   async function birthday(tk) {
@@ -1174,8 +1178,9 @@
     }
     var L = [{ t: "" }, { t: "*** JOYEUX ANNIVERSAIRE DORY ! ***" }, { t: target.indexOf("23:19") > -1 ? "23:19 : L'HEURE EXACTE !" : "" }, { t: "" }];
     wrap(BDAY_MSG, W - 4).forEach(function (x) { L.push({ t: x }); });
-    L.push({ t: "" }, { t: "TOUCHE OU ECRAN : RETOUR AU MENU" });
-    $("main").innerHTML = P(esc(rows.slice(0, 3).join("\n")) + "\n" + box("ANNIVERSAIRE DE DORY", L, W)) + photosBlock("19/09/2026");
+    L.push({ t: "" }, { t: "ECHAP : RETOUR AU MENU DES SAUTS" });
+    arrival = { html: P(esc(rows.slice(0, 3).join("\n")) + "\n" + box("ANNIVERSAIRE DE DORY", L, W)) + photosBlock("19/09/2026") };
+    scr = "arrival"; setBare(); $("main").innerHTML = arrival.html;
     showPhotos("19/09/2026", tk);
   }
 
