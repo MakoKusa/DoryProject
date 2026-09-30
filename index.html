@@ -81,9 +81,10 @@
   function volLoad(k) { var v = parseInt(store.get(k), 10); return isNaN(v) ? 100 : cl(v); }
 
   // ---------- Reglages ----------
-  var muted = store.get("mop_sound") === "off";      // bruitages on/off
+  var muted = store.get("mop_sound") === "off";      // bruitages on/off (coupe aussi les sons de Nezuko)
   var sfxVol = volLoad("mop_vol_s");                 // volume des bruitages (0-100)
   var musVol = volLoad("mop_vol_m");                 // volume de la musique (0-100)
+  var nzSound = store.get("mop_nzsound") !== "off";  // sons de Nezuko on/off (ON par defaut)
   var pink = store.get("mop_theme") !== "normal";    // theme ROSE par defaut (classique seulement si choisi)
   var particles = store.get("mop_particles") !== "off";   // petales en theme rose (ON par defaut)
   var authed = store.get("mop_auth") === "1";
@@ -161,8 +162,9 @@
   var LOGIN_PWD = "SUSHI", lgb = "";
 
   // ---------- Options ----------
-  var oi = 0, OPT_N = 7;
+  var oi = 0, OPT_N = 8;
   function toggleSound() { muted = !muted; store.set("mop_sound", muted ? "off" : "on"); }
+  function toggleNzSound() { nzSound = !nzSound; store.set("mop_nzsound", nzSound ? "on" : "off"); }
   function toggleTheme() {
     pink = !pink; document.documentElement.classList.toggle("pink", pink); store.set("mop_theme", pink ? "pink" : "normal");
   }
@@ -173,14 +175,15 @@
     reduced = !reduced; document.documentElement.classList.toggle("calm", reduced); store.set("mop_reduced", reduced ? "on" : "off");
     if (reduced) crt.classList.remove("shake", "inv", "crtoff");
   }
-  // 0 sons, 1 volume sons, 2 musique, 3 volume musique, 4 theme, 5 particules, 6 effets reduits
+  // 0 sons, 1 volume sons, 2 sons de Nezuko, 3 musique, 4 volume musique, 5 theme, 6 particules, 7 effets reduits
   function optAdj(i, d) {
     if (i === 0) { toggleSound(); beep(700, 60); }
     else if (i === 1) { sfxVol = cl(sfxVol + d * 10); store.set("mop_vol_s", String(sfxVol)); beep(700, 80); }
-    else if (i === 2) toggleMusic();
-    else if (i === 3) { musVol = cl(musVol + d * 10); store.set("mop_vol_m", String(musVol)); applyMusic(0.3); }
-    else if (i === 4) toggleTheme();
-    else if (i === 5) toggleParticles();
+    else if (i === 2) { toggleNzSound(); if (nzSound) nezVoice("yip"); }
+    else if (i === 3) toggleMusic();
+    else if (i === 4) { musVol = cl(musVol + d * 10); store.set("mop_vol_m", String(musVol)); applyMusic(0.3); }
+    else if (i === 5) toggleTheme();
+    else if (i === 6) toggleParticles();
     else toggleReduced();
   }
 
@@ -383,6 +386,7 @@
     var rows = [
       ["SONS", "[ " + (muted ? "OFF" : "ON") + " ]"],
       ["VOLUME SONS", "[" + bar(sfxVol, 10) + "] " + String(sfxVol).padStart(3) + "%"],
+      ["SONS NEZUKO", "[ " + (nzSound ? "ON" : "OFF") + " ]"],
       ["MUSIQUE", "[ " + (mus.on ? "ON" : "OFF") + " ]"],
       ["VOLUME MUSIQUE", "[" + bar(musVol, 10) + "] " + String(musVol).padStart(3) + "%"],
       ["THEME", "[ " + (pink ? "ROSE" : "CLASSIQUE") + " ]"],
@@ -392,6 +396,7 @@
     var L = [{ t: "" }];
     rows.forEach(function (r, i) { L.push({ t: (i === oi ? "> " : "  ") + r[0].padEnd(15) + ": " + r[1], sel: i === oi }); });
     L.push({ t: "" }, { t: "HAUT/BAS : CHOISIR   GAUCHE/DROITE : REGLER" }, { t: "ENTREE : BASCULER (ON/OFF, THEME, EFFETS)" },
+      { t: "SONS NEZUKO : BRUITS DE NEZUKO (SUIT SONS ET VOLUME SONS)" },
       { t: "PARTICULES : PETALES EN THEME ROSE UNIQUEMENT" }, { t: "(MASQUEES SI EFFETS REDUITS = ON)" },
       { t: "RACCOURCIS : S = SONS   M = MUSIQUE   T = THEME" }, { t: "ECHAP : RETOUR" });
     return box("OPTIONS", L, 62);
@@ -605,7 +610,7 @@
         if (ix < 0) return;
         cur = ix;
       }
-      else if (k === "Enter") { var s = IT[cur][1]; if (s !== "care") beep(880, 80); if (s === "shut") shut(); else go(s); return; }
+      else if (k === "Enter") { beep(880, 80); var s = IT[cur][1]; if (s === "shut") shut(); else go(s); return; }
       else return;
       beep(440, 40); draw(); return;
     }
@@ -613,13 +618,13 @@
       if ((scr === "db" || scr === "nav") && sq) { sq = false; beep(330, 60); draw(); return; }
       beep(330, 60); go("menu"); return;
     }
-    // Menu Options : sons, volumes, musique, theme, particules, effets reduits
+    // Menu Options : sons, volumes, sons de Nezuko, musique, theme, particules, effets reduits
     if (scr === "opt") {
       if (k === "ArrowDown") { oi = (oi + 1) % OPT_N; beep(440, 30); }
       else if (k === "ArrowUp") { oi = (oi + OPT_N - 1) % OPT_N; beep(440, 30); }
       else if (k === "ArrowLeft") optAdj(oi, -1);
       else if (k === "ArrowRight") optAdj(oi, 1);
-      else if ((k === "Enter" || k === " ") && [0, 2, 4, 5, 6].indexOf(oi) >= 0) optAdj(oi, 1);
+      else if ((k === "Enter" || k === " ") && [0, 2, 3, 5, 6, 7].indexOf(oi) >= 0) optAdj(oi, 1);
       else if (k === "t" || k === "T") toggleTheme();
       else return;
       draw(); return;
@@ -746,7 +751,7 @@
   var VOICE_TXT = { yip: "Wouaf !", yipyip: "Yip yip !", wuf: "Wouf !", growl: "Grrr...", whine: "Ouiiin...", snore: "zZz...", sigh: "*soupir*" };
   var sayTxt = "", sayUntil = 0;
   function dogSnd(kind) {
-    if (muted || sfxVol <= 0) return;
+    if (muted || sfxVol <= 0 || !nzSound) return;
     try {
       var c = getAC(), t = c.currentTime + 0.02, v = sfxVol / 100;
       var env = function (g, peak, a, d, t0) {
@@ -804,10 +809,10 @@
     sayTxt = VOICE_TXT[kind] || ""; sayUntil = Date.now() + 1600;
     dogSnd(kind);
   }
-  // Petits bruits spontanes, uniquement sur l'ecran d'entretien
+  // Petits bruits spontanes : sur l'ecran d'entretien ET sur le menu principal (encart NEZUKO.EXE)
   (function ambientNoise() {
     setTimeout(function () {
-      if (scr === "care" && cmode === "menu") {
+      if ((scr === "care" && cmode === "menu") || scr === "menu") {
         var r = Math.random();
         if (NZ.sl) { if (r < 0.6) nezVoice("snore"); }
         else if (NZ.h < 20 || NZ.j < 20 || NZ.c < 20) nezVoice(r < 0.5 ? "whine" : r < 0.75 ? "yip" : "growl");
@@ -850,7 +855,9 @@
     });
   }
   function nezBox() {
-    var L = [{ t: "" }, { t: " ".repeat(nz) + dogSprite() }, { t: "" }, { t: "> " + nezPhrase(), sel: true }, { t: "" }]
+    // Pendant qu'elle "parle", son cri (Wouaf !, Grrr...) remplace un instant le statut
+    var status = Date.now() < sayUntil && sayTxt ? sayTxt : nezPhrase();
+    var L = [{ t: "" }, { t: " ".repeat(nz) + dogSprite() }, { t: "" }, { t: "> " + status, sel: true }, { t: "" }]
       .concat(nzBars(20), [{ t: "" }, { t: "N : S'EN OCCUPER" }]);
     return box("NEZUKO.EXE", L, 42);
   }
