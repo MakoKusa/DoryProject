@@ -5,25 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rewind Machine MoP 3000 Pro Max</title>
 <style>
-  html, body { margin: 0; background: #000; }
-  body { font-family: "Courier New", Courier, monospace; font-size: 16px; line-height: 1.25; color: #fff; text-shadow: 0 0 4px rgba(255,255,255,.55); }
-  #crt { position: relative; min-height: 100vh; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; background: #000; overflow-x: auto; animation: flick 5s infinite; }
+  :root { --fg: #fff; --bg: #000; --glow: rgba(255,255,255,.55); }
+  :root.pink { --fg: #ff9ed8; --bg: #1c0012; --glow: rgba(255,105,190,.75); }
+  html, body { margin: 0; background: var(--bg); }
+  body { font-family: "Courier New", Courier, monospace; font-size: 16px; line-height: 1.25; color: var(--fg); text-shadow: 0 0 4px var(--glow); }
+  #crt { position: relative; min-height: 100vh; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; background: var(--bg); overflow-x: auto; animation: flick 5s infinite; }
   #crt::after { content: ""; position: fixed; inset: 0; pointer-events: none;
     background: repeating-linear-gradient(0deg, rgba(0,0,0,.3) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.65) 100%); }
   pre { margin: 0; font: inherit; white-space: pre; }
   h1 { font: inherit; margin: 0 0 20px; }
   .layout { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; }
   .col { display: flex; flex-direction: column; gap: 20px; }
-  .sel { background: #fff; color: #000; text-shadow: none; }
+  .sel { background: var(--fg); color: var(--bg); text-shadow: none; }
   .cursor { animation: blink 1s steps(1) infinite; }
   footer { margin-top: auto; padding-top: 28px; }
   .bare h1, .bare footer { visibility: hidden; }
   .photos { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
-  .photos figure { margin: 0; border: 2px solid #fff; padding: 6px; max-width: min(360px, 88vw); }
+  .photos figure { margin: 0; border: 2px solid var(--fg); padding: 6px; max-width: min(360px, 88vw); }
   .photos img { display: block; max-width: 100%; max-height: 300px; cursor: zoom-in; filter: contrast(1.05) brightness(.92) saturate(.9); }
   .photos figcaption { margin-top: 6px; font-size: 14px; }
-  #lb { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.95); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: zoom-out; padding: 12px; box-sizing: border-box; }
-  #lb img { max-width: 92vw; max-height: 80vh; border: 2px solid #fff; padding: 6px; background: #000; }
+  #lb { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.95); color: var(--fg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: zoom-out; padding: 12px; box-sizing: border-box; }
+  #lb img { max-width: 92vw; max-height: 80vh; border: 2px solid var(--fg); padding: 6px; background: var(--bg); }
   #lb .lbcap { font-size: 14px; text-align: center; }
   @keyframes blink { 50% { opacity: 0; } }
   @keyframes flick { 0%,100% { opacity: 1; } 91% { opacity: .95; } 93% { opacity: .82; } 95% { opacity: .98; } }
@@ -53,14 +55,19 @@
   var W = 78;
 
   // ---------- Son ----------
-  var ac, muted = false;
+  var ac, muted = false;   // muted : bruitages
+  function getAC() {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === "suspended") ac.resume();
+    return ac;
+  }
   function beep(f, d, type) {
     if (muted) return;
     try {
-      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
-      var o = ac.createOscillator(), g = ac.createGain();
+      var c = getAC();
+      var o = c.createOscillator(), g = c.createGain();
       o.type = type || "square"; o.frequency.value = f; g.gain.value = 0.04;
-      o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + d / 1000);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d / 1000);
     } catch (e) {}
   }
 
@@ -92,11 +99,96 @@
   // ---------- Etat ----------
   var DEF = "14/04/2025 - 20:00:00", target = DEF;
   var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false;
+  // Memoire du navigateur (localStorage) : theme, acces deja valide, musique, sons
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+  var LOGIN_PWD = "SUSHI", lgb = "";
+  var pink = store.get("mop_theme") === "pink", authed = store.get("mop_auth") === "1";
+  muted = store.get("mop_sound") === "off";
+  document.documentElement.classList.toggle("pink", pink);
+
+  // ---------- Options (sons, musique, theme) ----------
+  var oi = 0;
+  function toggleSound() { muted = !muted; store.set("mop_sound", muted ? "off" : "on"); }
+  function toggleTheme() {
+    pink = !pink; document.documentElement.classList.toggle("pink", pink); store.set("mop_theme", pink ? "pink" : "normal");
+  }
+  function toggleOpt(i) {
+    if (i === 0) { toggleSound(); beep(700, 60); }
+    else if (i === 1) toggleMusic();
+    else toggleTheme();
+  }
+
+  // ---------- Musique d'ambiance (generee, aucun fichier) ----------
+  var mus = { on: store.get("mop_music") !== "off", ready: false, bus: null };
+  // Accords doux et planants (Do maj9 / La min9 / Fa maj9 / Sol sus), 8 s chacun
+  var CHORDS = [
+    [130.81, 196.00, 293.66, 329.63],
+    [110.00, 164.81, 246.94, 261.63],
+    [87.31, 130.81, 196.00, 220.00],
+    [98.00, 146.83, 220.00, 329.63]
+  ];
+  var BELLS = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
+  function padNote(fq, t0) {
+    var c = ac, g = c.createGain(), o1 = c.createOscillator(), o2 = c.createOscillator();
+    o1.type = "sine"; o2.type = "triangle"; o1.frequency.value = fq; o2.frequency.value = fq; o2.detune.value = 7;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.03, t0 + 3);
+    g.gain.setValueAtTime(0.03, t0 + 8);
+    g.gain.linearRampToValueAtTime(0, t0 + 11);
+    o1.connect(g); o2.connect(g); g.connect(mus.bus);
+    o1.start(t0); o2.start(t0); o1.stop(t0 + 11.1); o2.stop(t0 + 11.1);
+  }
+  function nextChord(i) {
+    if (!mus.ready) return;
+    try {
+      if (ac.state === "running") CHORDS[i % CHORDS.length].forEach(function (fq) { padNote(fq, ac.currentTime + 0.05); });
+    } catch (e) {}
+    setTimeout(function () { nextChord(i + 1); }, 8000);
+  }
+  function bell() {
+    var c = ac, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+    o.type = "sine"; o.frequency.value = BELLS[Math.random() * BELLS.length | 0];
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.05, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.5);
+    o.connect(g); g.connect(mus.bus); o.start(t); o.stop(t + 3.6);
+  }
+  function nextBell() {
+    setTimeout(function () {
+      try { if (mus.ready && ac.state === "running") bell(); } catch (e) {}
+      nextBell();
+    }, 2500 + Math.random() * 4500);
+  }
+  function startMusic() {
+    if (mus.ready) { try { if (ac.state === "suspended") ac.resume(); } catch (e) {} return; }
+    try {
+      var c = getAC();
+      var master = c.createGain(); master.gain.value = 0;
+      var lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1400; lp.Q.value = 0.3;
+      var dl = c.createDelay(2); dl.delayTime.value = 0.62;
+      var fb = c.createGain(); fb.gain.value = 0.5;
+      var dlp = c.createBiquadFilter(); dlp.type = "lowpass"; dlp.frequency.value = 900;
+      var wet = c.createGain(); wet.gain.value = 0.45;
+      master.connect(lp); lp.connect(c.destination);
+      lp.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(wet); wet.connect(c.destination);
+      mus.bus = master; mus.ready = true;
+      master.gain.setTargetAtTime(mus.on ? 0.9 : 0, c.currentTime, 1.5);
+      nextChord(0); nextBell();
+    } catch (e) {}
+  }
+  function toggleMusic() {
+    mus.on = !mus.on; store.set("mop_music", mus.on ? "on" : "off");
+    if (mus.ready) mus.bus.gain.setTargetAtTime(mus.on ? 0.9 : 0, ac.currentTime, 0.5);
+  }
+
   // sq : prompt "saut temporel maintenant ?" (ecrans db et nav), syes : reponse selectionnee
   var f = [], nf = 0, dbi = 0, sq = false, syes = true, logs = [], pl = [], pp = 0;
   var IT = [["1. SAUT TEMPOREL", "db"], ["2. NAVIGATION LIBRE", "nav"], ["3. LOGS SYSTEME", "logs"],
-    ["4. SIMULATION DE PARADOXE", "para"], ["5. STATISTIQUES", "stats"], ["6. MINI JEUX", "mini"], ["7. D.O.R.Y PROJECT", "proto"],
-    ["8. NE PAS UTILISER", "pw"], ["0. ETEINDRE", "shut"]];
+    ["4. SIMULATION DE PARADOXE", "para"], ["5. STATISTIQUES", "stats"], ["6. MINI JEUX", "mini"], ["7. D.O.R.Y PROTOCOL", "proto"],
+    ["8. NE PAS UTILISER", "pw"], ["9. OPTIONS", "opt"], ["0. ETEINDRE", "shut"]];
   var metrics = [["PUISSANCE", 20], ["STABILITE", 80], ["CAUSALITE", 30], ["PARADOXE", 100], ["SUSHIMETER", 30]];
   var DB = [["14/04/2025", "Premiers échanges avec DORY"], ["17/10/2025", "Reprise de contact avec DORY"],
     ["12/03/2026", "Concert de l'Attaque des Titans"], ["26/03/2026", "Premier Naniwa"], ["16/04/2026", "Premier Nanimois"],
@@ -119,7 +211,7 @@
   // ---------- Photos souvenirs ----------
   // Convention : dossier "photos/" a cote de index.html, fichiers AAAA-MM-JJ_1.jpg, _2, _3 (jpg, jpeg, png ou webp).
   // Les photos ne s'affichent qu'a l'arrivee d'un saut temporel a la date correspondante.
-  // Legendes optionnelles : ajouter par exemple  "15/04/2025": ["Legende photo 1", "Legende photo 2"]
+  // Legendes optionnelles : ajouter par exemple  "14/04/2025": ["Legende photo 1", "Legende photo 2"]
   var CAP = {
   };
   var PH = {};
@@ -179,7 +271,7 @@
     "I|Réservoir de barbe à papa vide. Couleur : rose.", "W|Barbe à papa demandée. Stock : 0. Panique.",
     "W|Les Junimos font grève dans le condensateur.", "I|Les poules de la machine n'ont pas été nourries.",
     "I|Krobus repéré dans les égouts du continuum.", "W|Pierre ferme à 17h. Le voyage temporel aussi.",
-    "E|Joja Corp tente de racheter la machine. Refusé.", "E|Cuisine en feu ! Oignons non coupés.",
+    "E|Joja Corp tente de racheter la machine. Refusé.", "E|Cuisine en feu ! Oignons non coupés. (Overcooked)",
     "I|Menu 100% végétarien validé. Tofu grillé OK.",
     "I|Hello Kitty détectée secteur 7. Nœud rose intact.", "W|Nezuko a mordillé un câble. Il était rose.",
     "I|Récolte de panais terminée. Le futur est prometteur.", "W|Pelican Town : le bus est toujours en panne.",
@@ -189,7 +281,7 @@
     "I|Nezuko : 10/10 cœurs. Maximum atteint.",
     "W|Le rose sature. Impossible de rajouter du rose. Rajout.", "E|Nezuko a repéré un écureuil. Poursuite engagée.",
     "I|Barbe à papa rose : la meilleure des barbes à papa.", "W|Le poulet de Stardew s'est échappé de la machine.",
-    "E|La soupe déborde. Personne n'a de seau.", "I|Le Spitz nain refuse d'entrer dans le vaisseau : sieste.", "W|Prise de rose détectée dans le condensateur.",
+    "E|Overcooked : la soupe déborde. Personne n'a de seau.", "I|Le Spitz nain refuse d'entrer dans le vaisseau : sieste.", "W|Prise de rose détectée dans le condensateur.",
     "I|Le poisson de la Rivière valide le voyage temporel.", "W|Les Junimos demandent des sushis. Pas de tofu.", "I|Gaufre virtuelle en préparation. Pas de gluten (juste rose).",
     "E|Le Sushimeter a dépassé le seuil de la faim.", "I|Recherche de Nezuko : elle est sur le canapé.", "W|Sushi au thon détecté. Alerte végétarienne, rejeté.",
     "I|Mise à jour Stardew : +1 poule, +1 fromage.", "I|Diagnostic : besoin urgent de câlins pour Nezuko.", "W|Panne de barbe à papa au 3e sous-sol.",
@@ -203,23 +295,35 @@
     ["Vous promenez Nezuko dans le passé.", "Elle croise Nezuko du passé, déjà promenée.", "Deux Nezuko réclament des câlins en même temps.", "Le taux de mignon dépasse 9000.", "PARADOXE : une promenade en trop. Nezuko est ravie."],
     ["Vous ramenez une barbe à papa de 2026.", "Elle fond dans le continuum espace-temps.", "Le passé devient collant et rose.", "Personne ne sait plus quelle année on est.", "PARADOXE : la barbe à papa existe avant d'être faite."],
     ["Vous plantez un panais en 2025 (Stardew Valley).", "Un Junimo l'a déjà récolté en 2026.", "Le panais est dans l'inventaire avant d'être planté.", "Pierre refuse de le racheter.", "PARADOXE : la récolte précède la graine."],
-    ["Vous cuisinez dans le passé.", "La cuisine prend feu avant l'allumette.", "Le tofu est cuit avant d'être posé.", "Le chef hurle dans deux époques.", "PARADOXE : l'incendie a lieu, mais rien ne brûle."],
+    ["Vous cuisinez dans le passé (Overcooked).", "La cuisine prend feu avant l'allumette.", "Le tofu est cuit avant d'être posé.", "Le chef hurle dans deux époques.", "PARADOXE : l'incendie a lieu, mais rien ne brûle."],
     ["Vous offrez un Hello Kitty à DORY en 2025.", "Elle l'avait déjà dans sa collection en 2026.", "Le doublon se téléporte dans une boucle de rose.", "La boucle demande un sushi en échange.", "PARADOXE : un Hello Kitty est offert avant d'être acheté."],
     ["Vous amenez Nezuko au restaurant de sushis du passé.", "Le serveur ne trouve aucun sushi végétarien.", "Nezuko mange le menu. Le menu n'a jamais existé.", "Le restaurant est fermé depuis demain.", "PARADOXE : la faim précède le repas."]];
   var BOOT = ["REWIND MACHINE BIOS v0.1 (C) DORA", "", "TEST MEMOIRE ................ 640K OK", "CHARGEMENT DU CONDENSATEUR DE FLUX ... OK",
-    "CALIBRAGE DU SUSHIMETER ..... OK", "RECHERCHE DE NEZUKO ......... TROUVEE (ELLE VEUT SORTIR)", "VERIFICATION DU ROSE ........ SUFFISANT", "", "CHARGEMENT DU MENU PRINCIPAL..."];
+    "CALIBRAGE DU SUSHIMETER ..... OK", "RECHERCHE DE NEZUKO ......... TROUVEE (ELLE VEUT SORTIR)", "VERIFICATION DU ROSE ........ SUFFISANT", "", "@DERNIERE LIGNE"];
   var SHUT = ["ARRET DE LA REWIND MACHINE MoP 3000 PRO MAX...", "", "Sauvegarde des lignes temporelles ...... OK", "Refroidissement du condensateur de flux  OK",
     "Nezuko prévenue de l'extinction ........ (elle s'en fiche)", "Sushis restants : 0   Barbe à papa restante : 0", "", "A BIENTOT, DORY.", "N'oublie pas la promenade de Nezuko."];
   var PROTO = "Le D.O.R.Y PROJECT vise à construire une machine à remonter dans le temps nommée la Rewind Machine MoP 3000 Pro Max afin de ne pas reproduire les erreurs du passé et modifier le futur.\n\nLe D.O.R.Y PROTOCOL vise à remonter le temps à la date clé du 14/04/2025, date à laquelle Dory et Dora se sont échangés leurs premiers messages. Le but est de modifier le passé afin de réécrire un futur dans lequel Dory et Dora vivent leur meilleure vie.\n\nLa machine peut cependant être utilisée pour voyager à d'autres dates dont celles listées dans la section SAUT TEMPOREL.\n\nATTENTION : l'usage de cette machine peut produire une rupture du continuum espace-temps et créer un paradoxe temporel. La section SIMULATION DE PARADOXE est un outil permettant de s'en prémunir (sans garantie).";
 
   // ---------- Rendu ----------
-  function setBare() { crt.classList.toggle("bare", ["menu", "nav", "logs", "db", "para", "proto", "stats", "pw", "game", "mini", "care"].indexOf(scr) < 0); }
+  function setBare() { crt.classList.toggle("bare", ["menu", "nav", "logs", "db", "para", "proto", "stats", "pw", "game", "mini", "care", "login", "opt"].indexOf(scr) < 0); }
   function menuBox() {
     var L = [{ t: "" }];
     IT.forEach(function (x, i) { L.push({ t: (i === cur ? "> " : "  ") + x[0], sel: i === cur }); });
-    L.push({ t: "" }, { t: "FLECHES : NAVIGUER   ENTREE : VALIDER" }, { t: "N : NEZUKO   M : SON " + (muted ? "OFF" : "ON") }, { t: "" },
+    L.push({ t: "" }, { t: "FLECHES : NAVIGUER" }, { t: "ENTREE : VALIDER" }, { t: "N : NEZUKO" }, { t: "" },
       { t: "> EN ATTENTE DE COMMANDE_" });
     return box("PANNEAU DE CONTROLE", L, 44);
+  }
+  function optBox() {
+    var rows = [["SONS", muted ? "OFF" : "ON"], ["MUSIQUE", mus.on ? "ON" : "OFF"], ["THEME", pink ? "ROSE" : "CLASSIQUE"]];
+    var L = [{ t: "" }];
+    rows.forEach(function (r, i) { L.push({ t: (i === oi ? "> " : "  ") + r[0].padEnd(9) + ": [ " + r[1] + " ]", sel: i === oi }); });
+    L.push({ t: "" }, { t: "HAUT/BAS : CHOISIR   ENTREE, GAUCHE OU DROITE : BASCULER" },
+      { t: "RACCOURCIS : S = SONS   M = MUSIQUE   T = THEME" }, { t: "ECHAP : RETOUR" });
+    return box("OPTIONS", L, 62);
+  }
+  function loginBox() {
+    return box("ACCES SYSTEME", [{ t: "" }, { t: "AUTHENTIFICATION REQUISE." }, { t: "" }, { t: "MOT DE PASSE : " + "*".repeat(lgb.length) + "_" }, { t: "" },
+      { t: "> " + (st || "ENTREE : VALIDER") }], W);
   }
   function metBox() {
     var L = [{ t: "" }];
@@ -305,6 +409,8 @@
   function draw() {
     var h = "";
     if (scr === "menu") h = '<div class="layout">' + P(menuBox()) + '<div class="col">' + P(metBox()) + P(clockBox()) + P(nezBox()) + "</div></div>";
+    else if (scr === "login") h = P(loginBox());
+    else if (scr === "opt") h = P(optBox());
     else if (scr === "nav") h = P(navBox());
     else if (scr === "logs") h = P(logsBox());
     else if (scr === "db") h = P(dbBox());
@@ -315,11 +421,13 @@
     else if (scr === "care") h = P(cmode === "menu" ? careBox() : ballBox());
     else if (scr === "pw") h = P(pwBox());
     else if (scr === "game") h = P(gameBox());
-    else if (scr === "off") h = P(art + '\n\n  [ REWIND MACHINE EN VEILLE ]\n\n  APPUYEZ SUR UNE TOUCHE POUR ALLUMER<span class="cursor">_</span>');
+    else if (scr === "off") h = P(TITLE + '\n\n  [ REWIND MACHINE EN VEILLE ]\n\n  APPUYEZ SUR UNE TOUCHE POUR ALLUMER<span class="cursor">_</span>');
     $("main").innerHTML = h;
   }
   function go(s) {
     scr = s; run++; st = ""; prun = false; sq = false; setBare();
+    if (s === "login") lgb = "";
+    if (s === "opt") oi = 0;
     if (s === "nav") { f = target.match(/\d+/g).map(Number); nf = 0; }
     if (s === "logs") { logs = []; for (var i = 0; i < 6; i++) addLog(); }
     if (s === "para") { pl = []; pp = 0; }
@@ -341,14 +449,15 @@
   }
   async function boot() {
     crt.classList.remove("inv"); scr = "boot"; var tk = ++run; setBare();
-    if (!(await typeLines(BOOT, 380, tk))) return;
-    await sleep(500); if (tk === run) { beep(1200, 120); go("menu"); }
+    var lines = BOOT.slice(0, -1).concat(authed ? "CHARGEMENT DU MENU PRINCIPAL..." : "CHARGEMENT DE L'AUTHENTIFICATION...");
+    if (!(await typeLines(lines, 380, tk))) return;
+    await sleep(500); if (tk === run) { beep(1200, 120); go(authed ? "menu" : "login"); }
   }
   async function shut() {
     scr = "shut"; var tk = ++run; setBare();
     if (!(await typeLines(SHUT, 700, tk))) return;
     await sleep(900); crt.classList.add("crtoff"); beep(180, 700, "sawtooth"); await sleep(850);
-    crt.classList.remove("crtoff"); pickArt(); scr = "off"; setBare(); draw();
+    crt.classList.remove("crtoff"); scr = "off"; setBare(); draw();
   }
   async function crash() {
     scr = "crash"; crashReady = false; var tk = ++run; setBare(); crt.classList.add("shake");
@@ -360,7 +469,7 @@
       beep(80 + Math.random() * 900, 50, "sawtooth"); await sleep(60);
     }
     crt.classList.remove("shake"); crt.classList.add("inv");
-    $("main").innerHTML = P("\n *** ERREUR FATALE 0x15042025 ***\n\n CONTINUUM ESPACE-TEMPS : DETRUIT\n PARADOXE : 100%   CAUSALITE : 0%   STABILITE : ???\n\n" +
+    $("main").innerHTML = P("\n *** ERREUR FATALE 0x14042025 ***\n\n CONTINUUM ESPACE-TEMPS : DETRUIT\n PARADOXE : 100%   CAUSALITE : 0%   STABILITE : ???\n\n" +
       " Vous avez appuyé sur NE PAS UTILISER.\n Un sushi a disparu quelque part dans le multivers.\n Nezuko attend toujours sa promenade.\n Stardew Valley n'a jamais existé.\n\n" +
       " APPUYEZ SUR UNE TOUCHE POUR REDEMARRER (SI LE TEMPS EXISTE ENCORE)<span class=\"cursor\">_</span>");
     crashReady = true;
@@ -378,6 +487,7 @@
   document.addEventListener("keydown", function (e) {
     var k = e.key;
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", " "].indexOf(k) >= 0) e.preventDefault();
+    startMusic();   // le navigateur exige une action de l'utilisateur avant de jouer du son
     if (lb) {
       if (k === "Escape" || k === "Enter" || k === " ") closeLb();
       else if (k === "ArrowLeft" && lb.u.length > 1) { lb.i = (lb.i + lb.u.length - 1) % lb.u.length; lbRender(); }
@@ -386,16 +496,30 @@
     }
     idle = Date.now();
     if (scr === "ss") { go("menu"); return; }
-    if ((k === "m" || k === "M") && scr !== "pw") { muted = !muted; if (scr === "menu") draw(); return; }
+    // Raccourcis S (sons) et M (musique), inactifs pendant la saisie d'un mot de passe
+    if ((k === "s" || k === "S") && scr !== "pw" && scr !== "login") { toggleSound(); if (scr === "menu" || scr === "opt") draw(); return; }
+    if ((k === "m" || k === "M") && scr !== "pw" && scr !== "login") { toggleMusic(); if (scr === "menu" || scr === "opt") draw(); return; }
     if (scr === "off") { beep(600, 80); boot(); return; }
-    if (scr === "boot") { run++; go("menu"); return; }
+    if (scr === "boot") { run++; go(authed ? "menu" : "login"); return; }
     if (scr === "crash") { if (crashReady) boot(); return; }
     if (scr === "shut") return;
     if (scr === "jump") { if (jdone) go("menu"); return; }
+    // Mot de passe d'acces au menu principal (insensible a la casse), memorise ensuite dans le navigateur
+    if (scr === "login") {
+      if (k === "Backspace") lgb = lgb.slice(0, -1);
+      else if (k === "Enter") {
+        if (lgb.toUpperCase() === LOGIN_PWD) { authed = true; store.set("mop_auth", "1"); beep(1000, 120); go("menu"); return; }
+        st = "ACCES REFUSE. MOT DE PASSE INCORRECT."; lgb = ""; beep(140, 300, "sawtooth");
+      } else if (/^[a-zA-Z]$/.test(k) && lgb.length < 20) { lgb += k; st = ""; beep(500, 30); }
+      else return;
+      draw(); return;
+    }
     if (scr === "menu") {
       if (k === "ArrowDown") cur = (cur + 1) % IT.length;
       else if (k === "ArrowUp") cur = (cur + IT.length - 1) % IT.length;
       else if (k === "n" || k === "N") { beep(880, 80); go("care"); return; }
+      else if (k === "o" || k === "O") { beep(880, 80); go("opt"); return; }
+      else if (k === "t" || k === "T") { toggleTheme(); beep(pink ? 1100 : 500, 100, "triangle"); draw(); return; }
       else if (/^[0-9]$/.test(k)) {
         var ix = IT.findIndex(function (x) { return x[0].charAt(0) === k; });
         if (ix < 0) return;
@@ -408,6 +532,15 @@
     if (k === "Escape") {
       if ((scr === "db" || scr === "nav") && sq) { sq = false; beep(330, 60); draw(); return; }
       beep(330, 60); go("menu"); return;
+    }
+    // Menu Options : sons, musique, theme
+    if (scr === "opt") {
+      if (k === "ArrowDown") oi = (oi + 1) % 3;
+      else if (k === "ArrowUp") oi = (oi + 2) % 3;
+      else if (k === "Enter" || k === " " || k === "ArrowLeft" || k === "ArrowRight") toggleOpt(oi);
+      else if (k === "t" || k === "T") toggleTheme();
+      else return;
+      beep(440, 30); draw(); return;
     }
     // Prompt "saut temporel maintenant ?" (Saut temporel et Navigation libre)
     if ((scr === "db" || scr === "nav") && sq) {
@@ -479,7 +612,7 @@
   });
 
   // ---------- Extras ----------
-  var DOG = ["    /^-----^\\", "    V  o o  V", "     |  Y  |", "      \\ Q /", "      / - \\"].join("\n") + "\n";
+  // Ecran d'arrivee : uniquement le titre ASCII "D.O.R.Y PROJECT"
   var FONT = {
     "D": ["###  ", "#  # ", "#  # ", "#  # ", "###  "], "O": [" ##  ", "#  # ", "#  # ", "#  # ", " ##  "],
     "R": ["###  ", "#  # ", "###  ", "# #  ", "#  # "], "Y": ["#   #", " # # ", "  #  ", "  #  ", "  #  "],
@@ -493,11 +626,6 @@
     return rows.join("\n");
   }
   var TITLE = big("D.O.R.Y") + "\n\n" + big("PROJECT") + "\n";
-  var COTTON = ["      .-~~~-.", "    .' ~  ~ '.", "   (  ~  ~  ~  )", "    '. ~  ~ .'", "      '-.__.-'", "         ||", "         ||", "         ||", "     (barbe a papa)"].join("\n") + "\n";
-  var SUSHI = ["     .-~~~~~~~-.", "    (   saumon   )", "   (_____________)", "   |=============|", "   '-------------'"].join("\n") + "\n";
-  var ARTS = [DOG, TITLE, COTTON, SUSHI], art = DOG;
-  function pickArt() { art = ARTS[Math.random() * ARTS.length | 0]; }
-  pickArt();
   var BDAY_MSG = "Joyeux 33 ans Dory, tu es la meilleure des rencontres que j'ai pu faire, merci pour tout !";
   var NOTES = [262, 262, 294, 262, 349, 330, 262, 262, 294, 262, 392, 349];
   var idle = Date.now(), jdone = false, pwb = "";
@@ -522,7 +650,7 @@
     "Nezuko vole un sushi (saumon)", "Nezuko a piqué la manette", "Nezuko cherche un panais à Stardew", "Nezuko fait des bêtises. Encore.",
     "Nezuko a enterré un sushi", "Nezuko fait la sieste sur le canapé", "Nezuko se roule dans le rose", "Nezuko aboie sur un Junimo",
     "Nezuko attend une gaufre rose", "Nezuko fait les yeux doux", "Nezuko mâchouille un câble (non !)", "Nezuko rapporte un bâton rose",
-    "Nezuko fait la belle pour un sushi", "Nezuko tourne en rond, très sérieuse", "Nezuko renverse la soupe", "Nezuko se cache sous le canapé",
+    "Nezuko fait la belle pour un sushi", "Nezuko tourne en rond, très sérieuse", "Nezuko renverse la soupe Overcooked", "Nezuko se cache sous le canapé",
     "Nezuko secoue une peluche rose", "Nezuko boude : elle veut sa promenade"];
   var SLP = ["Nezuko dort. zZz", "Nezuko rêve de sushis... zZz", "Nezuko ronfle doucement. zZz"];
   function nezStep() { if (NZ.sl) return; nz += nd; if (nz >= 32 || nz <= 0) nd = -nd; }
@@ -546,7 +674,7 @@
   function nezBox() {
     var L = [{ t: "" }, { t: " ".repeat(nz) + dogSprite() }, { t: "" }, { t: "> " + nezPhrase(), sel: true }, { t: "" }]
       .concat(nzBars(20), [{ t: "" }, { t: "N : S'EN OCCUPER" }]);
-    return box("NEZUKOTCHI", L, 42);
+    return box("NEZUKO.EXE", L, 42);
   }
   function cacts() {
     return NZ.sl ? ["Réveiller Nezuko"] :
