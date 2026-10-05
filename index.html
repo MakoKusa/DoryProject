@@ -79,7 +79,7 @@
   #crt.shake { animation: shake .08s infinite; }
   #crt.crtoff { animation: crtoff .8s forwards; }
   #crt.inv { filter: invert(1) brightness(.35); }
-  /* ARG : section secrete (code ARGTEST) - ambiance top secret / horreur */
+  /* ARG : section secrete (code admin) - ambiance top secret / horreur */
   :root.arg { --fg: #8ec5ff; --bg: #01050c; --glow: rgba(70,150,255,.8); }
   :root.arg.nullt { --fg: #ff5448; --bg: #050000; --glow: rgba(255,30,20,.85); }
   html.arg body { text-shadow: 1px 0 rgba(0,90,255,.5), -1px 0 rgba(0,255,230,.2), 0 0 7px var(--glow); }
@@ -274,7 +274,7 @@
   var DEF = "14/04/2025 - 20:00:00", target = DEF;
   var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false, arrival = false, jumpFrom = "db";
   var argLog = [], argIn = "", argBusy = false, argFrame = "", argPrevTrack = null, argStat = 0, argTick = 0;
-  var argEntityReturned = false, argWhite = null;
+  var argEntityReturned = false, argWhite = null, nullPromenadeUsed = false;
   var argView = null, argArch = null, argArchSel = 0, argLogSel = 0, argInputMode = null, argInput = "", argChat = false;
   var LOGIN_PWD = "SUSHI", lgb = "";
 
@@ -981,7 +981,7 @@
     draw();
   }
 
-  // ---------- ARG : section secrete (code ARGTEST dans NE PAS UTILISER) ----------
+  // ---------- ARG : section secrete (code admin dans NE PAS UTILISER) ----------
   // Ambiance top secret / horreur : palette rouge sombre, texte corrompu, glitchs, piste musicale cachee SIGNAL PERDU.
   var ARG_STATUS = ["SIGNAL : STABLE", "SIGNAL : INSTABLE", "SIGNAL : ???", "PRESENCE DETECTEE", "NE VOUS RETOURNEZ PAS", "CONNEXION SURVEILLEE"];
   var ARG_UNKNOWN = ["COMMANDE INCONNUE.", "ACCES REFUSE.", "Elle a entendu.", "Personne ne répond.", "ERREUR 0x0D0R1 : la ligne est occupée.", "Ne tapez pas ça ici.", "..."];
@@ -1067,6 +1067,7 @@
     return true;
   }
   async function argEnter(taken) {
+    if (!taken && !argEntityReturned && story === 0) nullPromenadeUsed = false;
     var tk = ++run;
     scr = "arg"; argLog = []; argIn = ""; argBusy = true; argFrame = ""; argStat = 0;
     document.documentElement.classList.add("arg"); setBare();
@@ -1107,7 +1108,9 @@
   function argPanelBox() {
     if (argView === "creer") return creerBox();
     if (argView === "reconnect") {
-      var rc = [{ t: "" }, { t: "VOUS AVEZ ETE DECONNECTE." }, { t: "" }, { t: "VOULEZ-VOUS VOUS RECONNECTER ?" }, { t: "" }, { t: "[ OUI ]", h: '<span class="btnr">[ OUI ]</span>', act: "k:Enter" }, { t: "" }];
+      var rc = [{ t: "" }, { t: "VOUS AVEZ ETE DECONNECTE." }, { t: "" }, { t: "VOULEZ-VOUS VOUS RECONNECTER ?" }, { t: "" },
+        { t: (reconnectSel === 0 ? "> " : "  ") + "[ OUI ]", sel: reconnectSel === 0, act: "k:O" },
+        { t: (reconnectSel === 1 ? "> " : "  ") + (reconnectNoChanged ? "[ OUI ]" : "[ NON ]"), sel: reconnectSel === 1, act: "k:N" }, { t: "" }, { t: "FLECHES : CHOISIR   ENTREE : VALIDER" }];
       return P(box("CONNEXION INTERROMPUE", rc, Math.min(W, 52)));
     }
     if (argView === "confirm") {
@@ -1241,7 +1244,7 @@
     else if (argEntityReturned && c === "MIROIR") { argView = "mirror"; argViewT0 = Date.now(); thump(); draw(); return; }
     else if (argEntityReturned && c === "HORLOGE") { argView = "clock"; argViewT0 = Date.now(); thump(); draw(); return; }
     else if (argEntityReturned && (c === "DOSSIER 003" || c === "DOSSIER003")) { argView = "file3"; argViewT0 = Date.now(); thump(); draw(); return; }
-    else if (argEntityReturned && c === "PROMENADE" && hauntSelfCmd) { argType(["Viens avec moi."], tk, 520).then(function (ok) { if (ok && scr === "arg") { thump(); go("care"); } }); return; }
+    else if (argEntityReturned && c === "PROMENADE" && hauntSelfCmd && !nullPromenadeUsed) { nullPromenadeUsed = true; argType(["Viens avec moi."], tk, 520).then(function (ok) { if (ok && scr === "arg") { thump(); go("care"); } }); return; }
     else if (argEntityReturned && (c === "SAUTS" || c === "SAUT")) {
       var selfS = hauntSelfCmd; if (!selfS) userRanSauts = true;
       argType(["Les dates sont à moi.", "Je les range."], tk, 520).then(function (ok) { if (ok && scr === "arg") { thump(); go("db"); if (!selfS && sautsEdits === 0) hauntSautsVisit(); } }); return;
@@ -1305,8 +1308,21 @@
       " TOUCHEZ L'ECRAN POUR REDEMARRER (SI LE TEMPS EXISTE ENCORE)<span class=\"cursor\">_</span>");
     crashReady = true;
   }
+  var ARG_PARADOX = [
+    "Le simulateur ouvre une brèche vers un souvenir que vous avez sauvé.",
+    "DORY-0414 > Dora ? Regarde... je crois qu'elle nous lit encore.",
+    "DORA-0414 > Je pensais que nos chemins ne se croiseraient plus. Le temps nous fait un clin d'œil.",
+    "NULL-0414 > je suis là aussi. mais cette fois, je ne prends rien. ce souvenir est le mien.",
+    "DORY-0414 > Alors reste avec nous un instant. Il y a de la place pour toi.",
+    "DORA-0414 > Merci, Dory. Nous allons bien. Chacun a trouvé sa place.",
+    "NULL-0414 > maintenant, quelqu'un m'attend. tu peux refermer la brèche.",
+    "Les trois silhouettes vous saluent. Le signal s'éteint doucement.",
+    "PARADOXE : vous recroisez ceux à qui vous aviez dit adieu. Leurs souvenirs sont toujours à l'abri."
+  ];
+  function paradoxCases() { return finalDate ? SC.concat([ARG_PARADOX]) : SC; }
   async function para() {
-    var tk = ++run, sc = SC[Math.random() * SC.length | 0]; prun = true; pl = []; pp = 0; draw();
+    var cases = paradoxCases();
+    var tk = ++run, sc = cases[Math.random() * cases.length | 0]; prun = true; pl = []; pp = 0; draw();
     for (var i = 0; i < sc.length; i++) {
       await sleep(1100); if (tk !== run) return;
       pl.push(sc[i]); pp = Math.round((i + 1) / sc.length * 100); beep(300 + i * 150, 90); draw();
@@ -1362,7 +1378,13 @@
         argLog.push("Pour quitter cette interface utilisez la commande QUITTER."); draw(); return;
       }
       if (argBusy) return;
-      if (argView === "reconnect") { if (k === "Enter" || k === " " || k === "o" || k === "O") reconnectPress(); return; }
+      if (argView === "reconnect") {
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(k) >= 0) { reconnectSel = 1 - reconnectSel; draw(); }
+        else if (k === "Enter" || k === " ") reconnectPress(reconnectSel);
+        else if (k === "o" || k === "O") reconnectPress(0);
+        else if (k === "n" || k === "N") reconnectPress(1);
+        return;
+      }
       if (argView === "creer") { if (k === "Enter" || k === " ") creerPress(); return; }
       if (argView === "confirm") {
         if (k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight") argConfSel = 1 - argConfSel;
@@ -1489,7 +1511,9 @@
     if (scr === "pw") {
       if (k === "Backspace") pwb = pwb.slice(0, -1);
       else if (k === "Enter") {
-        if (pwb.toUpperCase() === "ARGTEST") { beep(60, 400, "sawtooth"); if (finalDate) go("endscr"); else argEnter(); return; }
+        if (pwb.toUpperCase() === "ARGUNDONE") { undoArgCompletion(); return; }
+        if (pwb.toUpperCase() === "ARGDONE") { completeArgForTesting(); return; }
+        if (pwb.toUpperCase() === "ADMIN") { beep(60, 400, "sawtooth"); if (finalDate) go("endscr"); else argEnter(); return; }
         if (pwb.toUpperCase() === "NEZUKO") { beep(1000, 120); crash(); return; }
         st = "ACCES REFUSE. MOT DE PASSE INCORRECT."; pwb = ""; beep(140, 300, "sawtooth");
       } else if (/^[a-zA-Z]$/.test(k) && pwb.length < 20) { pwb += k; st = ""; beep(500, 30); }
@@ -1552,7 +1576,7 @@
     if (scr === "pw") return ["azertyuiop".split(""), "qsdfghjklm".split(""), "wxcvbn".split("").concat(["del"]), ["esc", "ok"]];
     if (scr === "arg") {
       if (argView === "logs") return [["up", "down", "ok", "esc"]];
-      if (argView === "reconnect") return [["ok"]];
+      if (argView === "reconnect") return [["left", "right", "ok"]];
       if (argView === "creer") return [["ok", "esc"]];
       if (argView === "confirm") return [["left", "right", "ok", "esc"]];
       if (argView) return [["esc"]];
@@ -2154,11 +2178,66 @@
   var FINAL_MSG = "Dans un monde où une Dory et un Dora ont remonté le temps pour se retrouver, un passager inattendu les a rejoints. Une Dory d'un autre univers, une Dory n'ayant jamais rencontré Dora, n'ayant jamais adopté Nezuko, n'ayant jamais connu le bonheur. Une Dory allergique aux sushis qui vivait les concerts seule. Elle a cherché à rendre sa vie meilleure et pour ce faire elle a traversé le temps et l'espace pour corrompre les souvenirs de Dorys d'autres dimensions parallèles à la sienne.\n\nDORY-0414 a fusionné avec la NULL-0414, l'incarnation de cette Dory profondément triste. En arrivant dans le système du D.O.R.Y PROJECT, NULL-0414 a cherché à prendre le contrôle des souvenirs qui y étaient stockés, pour les faire siens. Mais c'était sans compter les réminiscences de DORY-0414 dont le cœur battait encore et qui a aiguillé la Dory du présent, de notre réalité, pour résoudre le problème. NULL-0414 ne cherchait que le bonheur et la Dory du présent le lui a donné en lui créant un souvenir bien à elle, rien que pour elle : le souvenir que tu lis en ce moment même. NULL-0414 n'est plus, elle est partie, heureuse.\n\nDORY-0414 et DORA-0414 se sont enfin retrouvés et sont rentrés dans leur réalité à eux. Une réalité où, en été 2025, ils se sont fait la promesse d'être l'un pour l'autre à jamais. Dans ce monde, NEZUKO-0414 existe et elle est la plus heureuse de toutes !\n\nDora, le vrai : Merci Dory d'avoir complété l'ARG d'Halloween 2026 ! J'espère que naviguer dans les souvenirs des autres Dorys et Doras t'aura plu ! En tout cas, moi j'ai adoré préparer cette petite surprise horrifique pour toi :)\nJoyeux spooktober et joyeux Halloween !\nDora, le vrai";
   var FINAL_END = ["Merci Dory d'avoir complété l'ARG Halloween 2026 !", "J'espère que c'était cool !", "N'oublie pas la commande SAUTS pour aller voir le nouveau souvenir créé !", "- Dora, le vrai."];
   var FINAL_EXTRA = [["dora", "DORA-0414 > Merci d'avoir sauvé nos souvenirs. Je ne les oublierai jamais."], ["dory", "DORY-0414 > Merci de nous avoir ramenés à la maison. Tu es la meilleure Dory."], ["grn", "NULL-0414 > ...merci de t'être arrêtée pour moi. Personne ne m'avait jamais écoutée."]];
-  var finalDate = store.get("mop_halloween26");
+  var finalDate = store.get("mop_halloween26"), giftedMemoryDate = null;
+  // A full page reload resets all ARG state, timers and restored memory caches.
+  // Only ARG unlocks are removed; unrelated settings and login are preserved.
+  function undoArgCompletion() {
+    if (!finalDate) {
+      pwb = ""; st = "L'ARG N'EST PAS FINALISE."; beep(140, 180, "sawtooth"); draw(); return;
+    }
+    try {
+      localStorage.removeItem("mop_halloween26");
+      if (theme === "null" || localStorage.getItem("mop_theme") === "null") localStorage.setItem("mop_theme", "rose");
+      if (mus.track === 4 || localStorage.getItem("mop_track") === "4") localStorage.setItem("mop_track", "0");
+      if (localStorage.getItem("mop_halloween26") !== null) throw new Error("Completion not removed");
+    } catch (e) {
+      pwb = ""; st = "RESET IMPOSSIBLE : STOCKAGE DU NAVIGATEUR INDISPONIBLE.";
+      beep(140, 180, "sawtooth"); draw(); return;
+    }
+    window.location.reload();
+  }
+  // Developer test shortcut, not advertised in the UI.
+  function completeArgForTesting() {
+    if (hauntTimer) { clearInterval(hauntTimer); hauntTimer = null; }
+    clearTimeout(sabT);
+    ambStop(); argWhiteNoise(false);
+    if (creerSM) { creerSM.stop(true); creerSM = null; }
+    if (theme !== "null" && DB_ORIG.length) {
+      DB.length = 0; DB_ORIG.forEach(function (x) { DB.push(x.slice()); });
+      Object.keys(MSG_ORIG).forEach(function (k) { MSG[k] = MSG_ORIG[k]; });
+      if (BDAY_ORIG) BDAY_MSG = BDAY_ORIG;
+      PH_DEL = {}; alteredDates = [];
+    }
+    argEntityReturned = false; argDory = false; argChat = false;
+    argBusy = false; argFrame = ""; argView = null; argInputMode = null; argInput = "";
+    hauntTaking = false; hauntLock = 0; corrBusy = false; collapsing = false;
+    creerOn = false; creerT = 0; creerSoft = 0;
+    collapseP = 0; collapseSeed = null; glitchBurstUntil = 0;
+    correctionDone = true; restoreTried = true; restoreFailed = true;
+    doryFirstDone = true; doraContacted = true;
+    recalled["DORY-0414"] = true; recalled["DORA-0414"] = true; story = 10;
+    if (!finalDate) {
+      var d = new Date(), z = function (n) { return String(n).padStart(2, "0"); };
+      finalDate = giftedMemoryDate || (z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear());
+    }
+    store.set("mop_halloween26", finalDate);
+    if (THEMES.indexOf("null") < 0) THEMES.push("null");
+    if (nullMemoryBackup) {
+      nullMemoryBackup.msg[finalDate] = FINAL_MSG;
+      if (!nullMemoryBackup.db.some(function (x) { return x[0] === finalDate && x[1] === FINAL_TITLE; })) nullMemoryBackup.db.push([finalDate, FINAL_TITLE]);
+    } else applyFinalEntry();
+    var root = document.documentElement;
+    root.style.removeProperty("--fg"); root.style.removeProperty("--bg"); root.style.removeProperty("--glow");
+    root.classList.remove("nullt"); root.classList.remove("nullgrn");
+    crt.classList.remove("shake", "inv", "glitchfx", "crtoff");
+    pwb = ""; beep(659.25, 200, "sine"); go("endscr");
+    if (mus.ready) applyMusic(0.5);
+  }
   function applyFinalEntry() {
-    if (!finalDate) return;
-    for (var i = 0; i < DB.length; i++) if (DB[i][0] === finalDate) return;
-    DB.push([finalDate, FINAL_TITLE]); MSG[finalDate] = FINAL_MSG;
+    var date = finalDate || giftedMemoryDate;
+    if (!date) return;
+    MSG[date] = FINAL_MSG;
+    if (!DB.some(function (x) { return x[0] === date && x[1] === FINAL_TITLE; })) DB.push([date, FINAL_TITLE]);
   }
   applyFinalEntry();
   function creditsBlock(d) {
@@ -2522,6 +2601,7 @@
     finally { hauntTaking = false; hauntLock = 0; hauntNextTake = Date.now() + 8000; hauntNextDory = Math.min(hauntNextDory, Date.now() + 22000); draw(); }
   }
   async function hNezuko() {
+    if (nullPromenadeUsed) return;
     if (!(await hRun("PROMENADE"))) return;
     var w = 0; while (scr !== "care" && w++ < 40) await sleep(200);
     if (scr !== "care") return;
@@ -2558,7 +2638,8 @@
       heartbeat(); ambDuck(2.5);
       if (!(await hPrep())) return;
       await sleep(600 + Math.random() * 600);
-      var st2 = hauntStage(), pool = [[3, hSpeakErase], [3, hSpeakSend], [2, hMistype], [1, hFlood], [2, hNezuko]];
+      var st2 = hauntStage(), pool = [[3, hSpeakErase], [3, hSpeakSend], [2, hMistype], [1, hFlood]];
+      if (!nullPromenadeUsed) pool.push([2, hNezuko]);
       if (story >= 2 && !restoreFailed) pool.push([3, hSauts]);
       if (st2 >= 3) pool.push([1, hDouble]);
       var tot = 0; pool.forEach(function (x) { tot += x[0]; }); var r = Math.random() * tot, f = pool[0][1];
@@ -2611,9 +2692,9 @@
       aPush(""); aPush("SUPPRESSION... TERMINEE."); await sleep(1000);
       aPush("[ " + entityId() + " : SUPPRIME ]"); await sleep(1500);
       root.classList.remove("nullt"); sm = softMusic(0.6);
-      aPush("DORY-0414 > c'est... fini ?"); await sleep(3200);
-      aPush("DORY-0414 > je sens le calme revenir. merci."); await sleep(3600);
-      aPush("DORY-0414 > on a réussi."); await sleep(2600);
+      aPush("DORY-0414 > c'est... fini ?"); await sleep(5500);
+      aPush("DORY-0414 > je sens le calme revenir. merci."); await sleep(6500);
+      aPush("DORY-0414 > on a réussi."); await sleep(15000);
       if (sm) { sm.stop(true); sm = null; }
       root.classList.add("nullt"); heartbeat(); await glitchFrames(6); await sleep(900);
       aPush(entityId() + " > non."); await sleep(1500);
@@ -2635,7 +2716,7 @@
     "Je suis coincé de l'autre côté du saut, dans le monde d'où vient NULL-0414.",
     "Là-bas, Dory ne m'a jamais rencontré. Nezuko n'a jamais existé. Personne n'a répondu à ses messages.",
     "NULL-0414, c'est elle : la Dory de ce monde-là. Elle a passé sa vie seule, et elle est terriblement triste.",
-    "Elle n'est pas là pour te détruire. Elle veut tes souvenirs, ceux de DORY-0414, les tiens. Parce que c'est ce qu'elle n'a jamais eu.",
+    "Elle n'est pas là pour te détruire. Elle veut vos souvenirs, ceux de DORY-0414 et les tiens, ceux des Dorys qui ont eu une meilleure vie que la sienne. Parce que c'est ce qu'elle n'a jamais eu.",
     "Elle veut juste être heureuse.",
     "On ne peut pas la supprimer. Mais si elle est comblée... elle partira d'elle-même.",
     "Comment ? Je ne sais pas encore tout à fait. Je cherche. Reste là.",
@@ -2645,12 +2726,16 @@
     "Dory ! Je t'entends mieux. J'ai trouvé quelque chose.",
     "On ne peut pas détruire quelqu'un qui n'a jamais rien eu. Mais on peut lui donner quelque chose.",
     "Il existe une commande : CREER. Elle permet de créer de nouveaux souvenirs.",
+    "Le seul moyen de la faire partir c'est de lui créer un souvenir positif à elle aussi.",
     "Écoute-la. Réconforte-la. Fais-lui comprendre qu'elle n'est plus seule.",
     "Je ne sais pas combien de temps ça tiendra... Fais-le pour elle. Et pour nous."
   ];
   var DORA_REMIND = ["Je suis toujours là. Le signal est faible.", "La commande : CREER. Écoute-la, réconforte-la.", "Je crois en toi, Dory."];
-  var reconnectRes = null;
-  function reconnectPress() { if (reconnectRes) { var r = reconnectRes; reconnectRes = null; r(); } }
+  var reconnectRes = null, reconnectNoChanged = false, reconnectSel = 0;
+  function reconnectPress(choice) {
+    if (choice === 1 && !reconnectNoChanged) { reconnectNoChanged = true; reconnectSel = 1; draw(); return; }
+    if (reconnectRes) { var r = reconnectRes; reconnectRes = null; r(); }
+  }
   // Effondrement -> deconnexion -> reconnexion (ecran glitche, vide, silence) -> DORA intervient
   async function hauntCollapse() {
     if (collapsing || story !== 4) return;
@@ -2676,7 +2761,7 @@
       // --- PLANTAGE : glitch massif, ecran noir, message de deconnexion (un seul choix : OUI) ---
       ambMute = true; argBusy = true; collapseP = 0.5; beep(40, 700, "sawtooth"); await glitchFrames(14); collapseP = 0;
       argFrame = " "; draw(); await sleep(2000); argFrame = "";
-      argLog = []; argView = "reconnect"; argBusy = false; hauntLock = 0; draw();
+      argLog = []; reconnectNoChanged = false; reconnectSel = 0; argView = "reconnect"; argBusy = false; hauntLock = 0; draw();
       await new Promise(function (res) { reconnectRes = res; });
       // --- RECONNEXION : ecran vide et glitche, silence lourd ---
       argView = null; argBusy = true; hauntLock = Date.now() + 300000;
@@ -2720,17 +2805,17 @@
 
   var CHAPTERS = [
     { n: ["je ne sais pas par où commencer.", "personne ne m'a jamais demandé comment j'allais."], b: "Je t'écoute", r: ["...vraiment ?", "d'accord. alors je vais te raconter."] },
-    { n: ["j'ai grandi dans un appartement trop grand.", "le téléphone ne sonnait jamais.", "j'envoyais des messages. ils restaient sans réponse."], b: "Je peux t'aider", r: ["m'aider ?", "personne ne m'avait jamais dit ça."] },
-    { n: ["je n'ai jamais rencontré Dora.", "je ne sais pas ce que ça fait, qu'on vous attende.", "dans mon monde, personne n'était là."], b: "Il t'aurait attendue", r: ["...tu crois ?", "j'aimerais le croire."] },
+    { n: ["quand je suis arrivée à Nantes, je n'ai jamais rencontré Dora.", "personne ne s'occupait de moi.", "je n'ai jamais rencontré quelqu'un avec qui rire et profiter de la vie. j'étais seule."], b: "Je peux t'aider", r: ["m'aider ?", "personne ne m'avait jamais dit ça."] },
+    { n: ["je n'ai jamais rencontré Dora.", "je ne sais pas ce que ça fait, d'être attendue par lui.", "dans mon monde, personne n'a jamais été là pour moi."], b: "Il t'aurait attendue", r: ["...tu crois ?", "j'aimerais le croire."] },
     { n: ["un soir, j'ai commandé des sushis pour essayer d'être comme les autres.", "ils étaient fades. et depuis, j'y suis allergique.", "même ça, on me l'a pris."], b: "Nous allons corriger tout ça", r: ["corriger...", "ce mot me faisait peur. là, non."] },
-    { n: ["il n'y a jamais eu de chien. Nezuko n'a jamais existé.", "juste du silence dans l'entrée, le soir.", "je parlais au mur pour entendre ma voix."], b: "Tu n'es plus seule", r: ["répète-le, s'il te plaît.", "tu n'es plus seule. je l'entends."] },
+    { n: ["je n'ai jamais eu de chien. Nezuko n'a jamais existé dans mon monde.", "je n'avais que le silence pour être accueillie chez moi le soir.", "je n'entendais que ma voix résonner dans mon appartement vide."], b: "Tu n'es plus seule", r: ["répète-le, s'il te plaît.", "tu n'es plus seule. je l'entends."] },
     { n: ["les concerts, je les écoutais seule, tout au fond.", "personne à côté pour dire que c'était beau.", "je rentrais en marchant vite pour ne pas pleurer dans la rue."], b: "Je suis là maintenant", r: ["je sais.", "je le sens, un peu."] },
     { n: ["alors j'ai traversé le temps.", "j'ai cherché une Dory qui avait tout ce que je n'ai pas eu.", "je voulais juste un souvenir. un seul."], b: "Prends-en un. Prends le mien", r: ["...vraiment ?", "il est chaud. c'est donc ça, un souvenir heureux."] },
     { n: ["je ne sais pas si j'ai le droit.", "j'ai tout pris, tout effacé.", "j'ai peur que tu me détestes."], b: "Tu as le droit", r: ["tu ne me détestes pas ?", "pourquoi ?"] },
     { n: ["je me souviens d'un rire.", "ce n'est pas le mien.", "c'est le tien, non ? ou celui de l'autre Dory ?"], b: "C'est le nôtre", r: ["le nôtre.", "j'aime ce mot."] },
     { n: ["j'ai peur de partir.", "la peur, c'est tout ce que j'ai connu.", "sans elle, il ne reste rien de moi."], b: "Je reste avec toi", r: ["tu resterais ?", "même si je ne suis pas... réelle ?"] },
     { n: ["si je pars, qui se souviendra de moi ?", "personne ne s'est jamais souvenu de moi."], b: "Moi. Je me souviendrai de toi", r: ["...", "merci. c'est la première fois que j'entends ça."] },
-    { n: ["j'ai mal à force de tenir.", "je crois que je n'ai plus besoin de ces murs.", "je peux lâcher ?"], b: "Tu peux lâcher. Va en paix", r: [] }
+    { n: ["j'ai mal à force de tenir.", "je crois que je n'ai plus besoin de ces murs.", "je peux partir ?"], b: "Tu peux partir. Va en paix", r: [] }
   ];
   var KIND = ["merci", "chaud", "chaleur", "souvenir", "souvenirs", "heureux", "heureuse", "aider", "attendue", "attendu", "droit", "paix", "rire", "nôtre", "ensemble", "lâcher", "gardé", "reste", "resterais", "entends", "sens", "croire", "mot", "aime", "plus", "seule", "vous", "toi", "tu", "vraiment"];
   var KIND_STRONG = ["merci", "chaud", "chaleur", "heureux", "heureuse", "aider", "attendue", "paix", "rire", "nôtre", "ensemble", "aime", "souvenir", "souvenirs", "gardé", "lâcher"];
@@ -2808,6 +2893,27 @@
     try { creerSM = softMusic(0); } catch (e) { creerSM = null; }
     creerRun();
   }
+  async function newSouvenirAnimation() {
+    var now = new Date(), z = function (n) { return String(n).padStart(2, "0"); };
+    giftedMemoryDate = z(now.getDate()) + "/" + z(now.getMonth() + 1) + "/" + now.getFullYear();
+    applyFinalEntry();
+    var width = Math.max(24, Math.min(W - 6, 54)), frames = reduced ? 5 : 18;
+    for (var i = 0; i <= frames; i++) {
+      var progress = Math.round(i / frames * 100), rows = [];
+      for (var r = 0; r < 7; r++) {
+        var line = "";
+        for (var col = 0; col < width; col++) line += Math.random() < (1 - i / frames) * .07 ? "+" : " ";
+        rows.push(line);
+      }
+      argFrame = rows.join("\n") + "\n\n  CREATION D'UN SOUVENIR POSITIF\n\n  [" + "=".repeat(Math.floor(progress / 5)) + " ".repeat(20 - Math.floor(progress / 5)) + "] " + progress + "%";
+      draw(); if (i % 3 === 0) beep(392 + i * 16, 110, "sine"); await sleep(reduced ? 160 : 100);
+    }
+    argFrame = "\n\n  UN NOUVEAU SOUVENIR A ETE AJOUTE AUX SAUTS\n\n  " + giftedMemoryDate + "\n\n  Dory a sauvé nos souvenirs [Halloween 2026]";
+    draw(); beep(659.25, 400, "sine"); await sleep(4000);
+    argFrame = "";
+    creer.lines.push({ t: "[ NOUVEAU SOUVENIR AJOUTE AUX SAUTS ]", mask: null, base: "wht" });
+    draw();
+  }
   async function creerRun() {
     try {
       await sleep(1200);
@@ -2822,6 +2928,7 @@
         creer.prog = (k + 1) / CHAPTERS.length; creerT = creer.prog;
         creerRestoreEntry(k); creer.fused.push(DB_ORIG[k][1]);
         creerTheme(creerT); creerUpdateSoft();
+        if (k === CHAPTERS.length - 1) await newSouvenirAnimation();
         beep(523.25 + k * 30, 260, "sine"); setTimeout(function () { beep(659.25, 300, "sine"); }, 180); draw();
         await sleep(500);
         for (var j = 0; j < ch.r.length; j++) await creerType(ch.r[j], 45);
@@ -2829,7 +2936,7 @@
       }
       document.documentElement.classList.add("nullgrn");
       creer.prog = 1; creerSoft = 1; if (creerSM) creerSM.set(1);
-      await creerType("merci.", 60, true); await creerType("tu as gardé les souvenirs. ils sont à vous.", 50, true); await sleep(1500);
+      await creerType("merci.", 60, true); await creerType("je te rends vos souvenirs, ils sont à vous... enfin, à nous toutes.", 50, true); await sleep(1500);
       nullDeparts();
     } catch (e) { creerOn = false; }
   }
@@ -2900,12 +3007,12 @@
     try { sm = softMusic(1); } catch (e) {}
     aPush("RETOUR CONFIRME : 2 PASSAGERS"); await sleep(2200);
     var D = [["DORY-0414", "Dora..."], ["DORA-0414", "Dory. C'est toi. Tu es vraiment là."], ["DORY-0414", "J'ai cru qu'on ne se reverrait jamais."], ["DORA-0414", "Moi aussi. Tout ce temps, coincé entre deux moments..."], ["DORY-0414", "Je suis si heureuse de te retrouver."],
-      ["DORA-0414", "Et Nezuko ? Tu l'entends ?", "yipyip"], ["DORY-0414", "Elle aboie ! Elle nous a tellement manqué !", "yip"], ["DORA-0414", "Merci, Dory. Toi, la vraie, celle d'ici. Grâce à toi, on a pu rentrer dans notre réalité."],
-      ["DORY-0414", "Merci d'avoir protégé nos souvenirs. Et d'avoir écouté celle qui se sentait si seule."], ["DORA-0414", "On te le promet : on va vivre une vie heureuse. Ensemble."], ["DORY-0414", "Ensemble. Avec Nezuko."], ["DORA-0414", "À bientôt, Dory."]];
+      ["DORA-0414", "Et Nezuko ? Tu l'entends ?", "yipyip"], ["DORY-0414", "Elle aboie ! Elle nous a tellement manqué !", "yip"], ["DORA-0414", "Merci, Dory, la vraie, celle qui est derrière cet écran en train de nous lire. Grâce à toi, on a pu rentrer dans notre réalité."],
+      ["DORY-0414", "Merci d'avoir protégé nos souvenirs. Et d'avoir écouté celle qui se sentait si seule."], ["DORA-0414", "On te le promet : on va vivre une vie heureuse. Ensemble."], ["DORY-0414", "Ensemble. Avec Nezuko."], ["DORA-0414", "Adieu, Dory, je doute que nous nous recroisions un jour."]];
     for (var i = 0; i < D.length; i++) { aPush(D[i][0] + " > " + D[i][1]); if (D[i][2]) { try { dogSnd(D[i][2]); } catch (er) {} } await sleep(Math.min(4800, 2300 + D[i][1].length * 38)); }
     if (!finalDate) {
       var d = new Date(), z = function (n) { return String(n).padStart(2, "0"); };
-      finalDate = z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear(); store.set("mop_halloween26", finalDate);
+      finalDate = giftedMemoryDate || (z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear()); store.set("mop_halloween26", finalDate);
     }
     if (THEMES.indexOf("null") < 0) THEMES.push("null");
     applyFinalEntry();
