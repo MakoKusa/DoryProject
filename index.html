@@ -123,6 +123,13 @@
   html.calm #crt.inv { filter: none; }
   html.calm #petals { display: none !important; }
   @media (prefers-reduced-motion: reduce) { #crt, .cursor { animation: none; } #crt.inv { filter: none; } #petals { display: none !important; } }
+
+  html.arg.archive-reading #crt { animation: none !important; }
+  .archive-reader { --fg: #eeeeee; --bg: #080b0d; --glow: rgba(238,238,238,.25); color: var(--fg); text-shadow: 0 0 3px var(--glow); }
+  .archive-reader pre { color: var(--fg); text-shadow: 0 0 3px var(--glow); }
+  .archive-clean .ent { color: #eeeeee !important; text-shadow: 0 0 3px rgba(238,238,238,.25) !important; }
+  .archive-error { --fg: #ff3434; --bg: #130405; --glow: rgba(255,35,35,.55); }
+  .archive-error pre, .archive-error span { color: #ff3434 !important; text-shadow: 0 0 5px rgba(255,35,35,.55) !important; }
 </style>
 </head>
 <body>
@@ -803,7 +810,7 @@
   // Noms de commandes en BLANC dans les textes (terminal, LOGS, ecran de fin)
   function cmdColor(html) {
     return html.replace(/>([^<]+)</g, function (m, txt) {
-      return ">" + txt.replace(/(?<!DES )(?<!DU )\b(AIDE|LOGS|PASSAGERS|SOUVENIRS|MSG|SAUTS|RESTAURER|CORRIGER|CREER|SALLE|MIROIR|HORLOGE|DOSSIER 003|RAPPEL)\b/g, '<span class="cmdw">$1</span>') + "<";
+      return ">" + txt.replace(/(?<!DES )(?<!DU )\b(?:(?:MSG|RAPPEL)\b(?:\s+(?:&lt;ID&gt;|(?:DORA|DORY|NULL)-0414\b))?|(?:AIDE|LOGS|PASSAGERS|SORTIE|SAUTS|RESTAURER|CORRIGER|CREER|SALLE|MIROIR|HORLOGE|DOSSIER 003)\b)/g, '<span class="cmdw">$&</span>') + "<";
     });
   }
   function endBox() {
@@ -937,6 +944,9 @@
     return box("STATISTIQUES", L, W);
   }
   function draw() {
+    var readingArchive = scr === "arg" && argView === "logs" && argArch !== null && !argFrame;
+    document.documentElement.classList.toggle("archive-reading", readingArchive);
+    if (readingArchive) crt.classList.remove("glitchfx", "shake", "inv");
     var h = "";
     if (scr === "menu") h = '<div class="layout">' + P(menuBox()) + '<div class="col">' + P(metBox()) + P(clockBox()) + P(nezBox()) + "</div></div>";
     else if (scr === "login") h = P(loginBox());
@@ -956,7 +966,7 @@
     else if (scr === "off") h = P(TITLE + '\n\n  [ REWIND MACHINE EN VEILLE ]\n\n  APPUYEZ SUR UNE TOUCHE (OU TOUCHEZ L\'ECRAN) POUR ALLUMER<span class="cursor">_</span>');
     if (scr !== "arg") h = h.replace(/NULL-0414/g, '<span class="ent">NULL-0414</span>').replace(/DORY-0414/g, '<span class="dory">DORY-0414</span>').replace(/DORA-0414/g, '<span class="dora">DORA-0414</span>');
     if (scr === "arg" || scr === "endscr") h = cmdColor(h);
-    if (collapseP > 0 || Date.now() < glitchBurstUntil) h = eraseHtml(h, Date.now() < glitchBurstUntil ? Math.max(collapseP, 0.2) : collapseP);
+    if (!readingArchive && (collapseP > 0 || Date.now() < glitchBurstUntil)) h = eraseHtml(h, Date.now() < glitchBurstUntil ? Math.max(collapseP, 0.2) : collapseP);
     h = (scr === "arrival" && finalDate && arrival && arrival.d === finalDate) ? finalGreen(h) : idColor(h, "ent");
     $("main").innerHTML = h;
     renderBar();
@@ -1091,20 +1101,162 @@
     if (argPrevTrack !== null) { mus.track = argPrevTrack; argPrevTrack = null; if (mus.ready) { mus.bus.gain.setTargetAtTime(musTarget(), ac.currentTime, 0.5); startTrack(); } }
   }
   // ---------- Interfaces ARG dediees ----------
+  var argDepartureDate = (function () {
+    var d = new Date(), z = function (n) { return String(n).padStart(2, "0"); };
+    return z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear();
+  })();
   var ARG_LOGS = [
-    { n: "LOG 01", t: "PREPARATION DU SAUT", x: ["ARCHIVES D'INCIDENTS RM-14-04-2025", "LOG 01 // PREPARATION DU SAUT", "", "SPECIMEN DORA-0414", "Signaux vitaux : NOMINAUX", "Signature temporelle : STABLE", "Intégrité cognitive : 100%", "", "SPECIMEN DORY-0414", "Signaux vitaux : NOMINAUX", "Signature temporelle : STABLE", "Intégrité cognitive : 100%", "", "Conclusion : toutes les conditions de saut sont correctes."] },
-    { n: "LOG 02", t: "LANCEMENT DU PROTOCOLE", x: ["LOG 02 // LANCEMENT DU PROTOCOLE", "", "DESTINATION : 14/04/2025 - 20:00:00", "Condensateur de flux : CHARGE", "Stabilité du couloir : 98%", "", "DORA-0414 et DORY-0414 ont franchi le seuil.", "Le saut est considéré comme réussi."] },
-    { n: "LOG 03", t: "DECOMPTE DES PASSAGERS", x: ["LOG 03 // DECOMPTE DES PASSAGERS", "", "DEPART : 2 masses biologiques déclarées.", "TRANSIT : 3 masses biologiques détectées.", "", "Hypothèse initiale : reflet de mesure.", "La troisième masse occupe pourtant un siège passager.", "", "Les opérateurs demandent l'arrêt du protocole."] },
-    { n: "LOG 04", t: "ANOMALIE DE MASSE", x: ["LOG 04 // ANOMALIE DE MASSE", "", "Troisième présence : " + entityId(), "Origine : I N D E T E R M I N E E", "Masse : aucune donnée cohérente", "Température : celle de la pièce", "Date de naissance : antérieure au système", "", "Le logiciel refuse d'enregistrer le sujet.", "Le sujet est tout de même enregistré."] },
-    { n: "LOG 05", t: "DERNIERES TRANSMISSIONS", x: ["LOG 05 // DERNIERES TRANSMISSIONS", "AVANT PERTE DU SIGNAL", "", "DORY-0414 > Tu peux me voir ?", "DORY-0414 > Dora dit que la machine nous ramènera demain.", "DORY-0414 > Mais demain ne vient jamais ici.", "DORY-0414 > Il y a quelqu'un avec nous.", "DORY-0414 > Il connaît les souvenirs qu'on n'a pas encore vécus.", "", "DORA-0414 > Ne réponds pas au signal suivant.", "DORA-0414 > Nous ne sommes pas seuls.", "DORA-0414 > Il était déjà assis avec nous quand nous sommes arrivés.", "DORA-0414 > On ne voyait pas son visage.", "DORA-0414 > On voyait seulement le vide à l'endroit où il aurait dû être.", "DORA-0414 > Dory l'a entendu respirer dans la machine.", "DORA-0414 > Ne fais surtout pas le rappel.", "", "[ TRANSMISSION INTERROMPUE ]"] },
-    { n: "LOG 06", t: "RAPPEL IMPOSSIBLE", x: ["LOG 06 // RAPPEL IMPOSSIBLE", "", "RAPPEL DORA-0414 : ECHEC", "RAPPEL DORY-0414 : ECHEC", "", "Les deux spécimens sont localisés à la fois", "dans le passé et hors de toute date calculable.", "", "Le protocole tente de répondre à leur place."] },
-    { n: "LOG 07", t: "PERTE TOTALE", x: ["LOG 07 // PERTE TOTALE", "", "Liaison avec DORA-0414 : PERDUE", "Liaison avec DORY-0414 : PERDUE", "", "Les recherches sont interrompues à 23:19.", "La troisième présence continue de transmettre.", "", "Décision : fermer l'archive. Ne plus jamais relancer la machine."] },
-    { n: "LOG ???", t: "ERREUR DE CLASSIFICATION", x: ["LOG ??? // ERREUR DE CLASSIFICATION", "", "Ne lui donnez pas de nom.", "Elle est consciente.", "Elle écoute.", "Elle est ici mais nous ne pouvons pas la voir.", "Elle nous regarde."] }
-  ];
+  {
+    "n": "LOG 01",
+    "t": "PRÉPARATION DU SAUT",
+    "x": [
+      "LOG 01 // PRÉPARATION DU SAUT",
+      "",
+      "Préparation du SAUT n°0414 : départ prévu le __DATE__, arrivée prévue le 14/04/2025 à 20 h 00.",
+      "Deux passagers embarqués, identifiés par un nom de spécimen : prénom + code de SAUT.",
+      "",
+      "SPÉCIMEN DORA-0414",
+      "Signes vitaux : NOMINAUX",
+      "Signature temporelle : STABLE",
+      "Intégrité cognitive : 100 %",
+      "",
+      "SPÉCIMEN DORY-0414",
+      "Signes vitaux : NOMINAUX",
+      "Signature temporelle : STABLE",
+      "Intégrité cognitive : 100 %",
+      "",
+      "Conclusion : toutes les conditions de saut sont remplies. Validation du passage à l'étape suivante."
+    ]
+  },
+  {
+    "n": "LOG 02",
+    "t": "LANCEMENT DU PROTOCOLE",
+    "x": [
+      "LOG 02 // LANCEMENT DU PROTOCOLE",
+      "",
+      "EXÉCUTION DU D.O.R.Y PROTOCOL",
+      "DESTINATION : 14/04/2025 - 20:00:00",
+      "Condensateur de flux : chargé",
+      "Stabilité du couloir temporel : > 99,9 %",
+      "Lancement dans 3…",
+      "2…",
+      "1…",
+      "Les spécimens DORA-0414 et DORY-0414 ont franchi le seuil temporel et l'horizon des événements.",
+      "Le saut est considéré comme réussi."
+    ]
+  },
+  {
+    "n": "LOG 03",
+    "t": "ANOMALIE DE MASSE",
+    "x": [
+      "LOG 03 // ANOMALIE DE MASSE",
+      "",
+      "Ceci est très étrange : nos systèmes ont relevé une anomalie de masse dans la capsule temporelle, une cinquantaine de kilos en trop par rapport à l'attendu.",
+      "C'est la première fois que notre machine remonte une telle différence de masse.",
+      "Le docteur Dora en a été informé, mais il ne sait pas expliquer cette différence pour le moment.",
+      "Il s'est enfermé dans son bureau pour résoudre le mystère. Il n'en est pas sorti depuis des jours.",
+      "- Dr L."
+    ]
+  },
+  {
+    "n": "LOG 04",
+    "t": "DÉCOMPTE DES PASSAGERS",
+    "x": [
+      "LOG 04 // DÉCOMPTE DES PASSAGERS",
+      "",
+      "Le docteur Dora m'a fait part d'une nouvelle surprenante : il pense qu'un passager clandestin se serait introduit dans la capsule temporelle !",
+      "Mais nous sommes certains qu'il n'y avait que deux passagers au moment du lancement…",
+      "Serait-il possible que le troisième passager ait rejoint la capsule après son départ et avant même qu'elle n'arrive à destination ? Comment est-ce possible ?!",
+      "Le docteur Dora a identifié ce passager temporel inconnu : NULL-0414.",
+      "- Dr L."
+    ]
+  },
+  {
+    "n": "LOG 05",
+    "t": "DERNIÈRES TRANSMISSIONS",
+    "x": [
+      "LOG 05 // DERNIÈRES TRANSMISSIONS",
+      "",
+      "Ci-dessous les dernières transmissions reçues de DORA-0414 et DORY-0414 avant leur disparition.",
+      "",
+      "DORY-0414 > Tu peux le voir ?",
+      "DORA-0414 > Voir quoi ?",
+      "DORY-0414 > Une \"personne\", elle est assise à côté de moi !",
+      "DORA-0414 > Impossible ! Nous ne sommes que deux à être montés dans la capsule !",
+      "DORY-0414 > Il y a quelqu'un avec nous.",
+      "DORA-0414 > Dory, tu dois perdre la tête. Ce doivent être des effets secondaires de la dilatation temporelle !",
+      "DORY-0414 > Elle connaît mes souvenirs. Comment est-ce possible ? Quelle est cette \"chose\" ?!",
+      "…",
+      "Quelques minutes plus tard…",
+      "…",
+      "DORA-0414 > Nous ne sommes pas seuls.",
+      "DORA-0414 > Cette chose était déjà assise avec nous avant notre arrivée.",
+      "DORA-0414 > On ne distinguait simplement pas sa présence. Elle n'a aucun visage.",
+      "DORA-0414 > Dory m'a dit l'avoir entendue respirer dans son casque alors que rien n'était à côté d'elle.",
+      "DORA-0414 > Depuis, Dory a disparu. Elle n'est plus là et elle ne répond plus aux messages.",
+      "DORA-0414 > Je suis terrifié à l'idée de ce que cette chose pourrait être…"
+    ]
+  },
+  {
+    "n": "LOG 06",
+    "t": "TENTATIVE DE RAPPEL",
+    "x": [
+      "LOG 06 // TENTATIVE DE RAPPEL",
+      "",
+      "Exécution du protocole de RAPPEL des spécimens.",
+      "",
+      "RAPPEL DORA-0414 : ÉCHEC — code d’erreur 500",
+      "RAPPEL DORY-0414 : ÉCHEC — code d’erreur 602",
+      "",
+      "Les deux spécimens ne sont plus localisables. Ils sont perdus dans le temps, à la fois dans le passé et dans toutes les dates calculables."
+    ]
+  },
+  {
+    "n": "LOG 07",
+    "t": "PERTE TOTALE",
+    "x": [
+      "LOG 07 // PERTE TOTALE",
+      "",
+      "Tentative d'ouverture d'un canal de communication avec les spécimens embarqués :",
+      "",
+      "Liaison avec MSG DORA-0414 : INTROUVABLE",
+      "Liaison avec MSG DORY-0414 : INTROUVABLE",
+      "",
+      "Les recherches sont interrompues.",
+      "Il semblerait que la troisième présence NULL-0414 continue de transmettre.",
+      "Que se passerait-il en tentant de la contacter via MSG ?",
+      "",
+      "Décision : le docteur Dora recommande de ne pas agir à la hâte."
+    ]
+  },
+  {
+    "n": "LOG #ERR",
+    "t": "NULL-0414",
+    "x": [
+      "LOG #ERR // NULL-0414",
+      "",
+      "Ne lui donnez pas de nom.",
+      "Elle est consciente.",
+      "Elle écoute.",
+      "Elle est ici, mais personne ne peut la voir.",
+      "Elle nous regarde en ce moment même."
+    ]
+  }
+];
+  ARG_LOGS[0].x = ARG_LOGS[0].x.map(function (line) { return line.replace("__DATE__", argDepartureDate); });
   var ARG_ARCHIVES = [
     { name: "ARCHIVE INCIDENTS RM-14-04-2025", desc: ["Saut temporel vers le 14/04/2025 - 20:00:00.", "Sujets : DORA-0414, DORY-0414.", "Une troisième présence est détectée."], logs: ARG_LOGS }
   ];
   var argViewT0 = 0, argConfSel = 1;
+  function archiveReader(log, index, total) {
+    var error = log.n === "LOG #ERR", width = Math.min(62, W), rows = [{ t: "" }];
+    var glitch = error && !reduced && (Math.floor(Date.now() / 150) % 13 < 3);
+    log.x.forEach(function (line) {
+      wrap(line, width - 3).forEach(function (text) { rows.push({ t: glitch ? corrupt(text, 0.09) : text }); });
+    });
+    rows.push({ t: "" }, { t: String(index + 1).padStart(2, "0") + " / " + String(total).padStart(2, "0") });
+    return '<div class="archive-reader ' + (error ? "archive-error" : "archive-clean") + '">' + P(box("LECTEUR D’ARCHIVE", rows, width)) + '</div>';
+  }
   function argPanelBox() {
     if (argView === "creer") return creerBox();
     if (argView === "reconnect") {
@@ -1152,35 +1304,39 @@
       var ls = [{ t: "" }, { t: A.name }, { t: "" }];
       LG.forEach(function (l, i) { ls.push({ t: (i === argLogSel ? "> " : "  ") + l.n + " " + l.t, sel: i === argLogSel }); });
       ls.push({ t: "" }, { t: "HAUT/BAS : CHOISIR   ECHAP : ARCHIVES" });
-      var rs = [{ t: "" }];
-      colorLines(LG[argLogSel].x, 54).forEach(function (o) { rs.push(o); });
-      rs.push({ t: "" }, { t: String(argLogSel + 1).padStart(2, "0") + " / " + String(LG.length).padStart(2, "0") });
-      return '<div class="layout">' + P(box("LISTE DES LOGS", ls, Math.min(44, W))) + P(box("LECTEUR D'ARCHIVE", rs, Math.min(62, W))) + "</div>";
+      return '<div class="layout">' + P(box("LISTE DES LOGS", ls, Math.min(44, W))) + archiveReader(LG[argLogSel], argLogSel, LG.length) + "</div>";
     }
     if (argView === "passengers") {
       var left = [{ t: "" }, { t: "MANIFESTE RM-14-04-2025" }, { t: "DESTINATION : 14/04/2025 - 20:00:00" }, { t: "" }, { t: "ALLER : 2 PASSAGERS DECLARES" }, { t: "RETOUR : 0 PASSAGER CONFIRME" }, { t: "" }, { t: "DORA-0414" }, { t: "DORY-0414" }, { t: "" }, { t: "PRESENCE NON DECLAREE :" }, { t: entityId() }, { t: "" }, { t: "ECHAP : TERMINAL" }];
       var right = [{ t: "" }, { t: "DORA-0414" }, { t: "NOM : DORA" }, { t: "Signes vitaux : NOMINAUX" }, { t: "Signature temporelle : STABLE" }, { t: "Intégrité cognitive : 100%" }, { t: "" }, { t: "DORY-0414" }, { t: "NOM : DORY" }, { t: "Signes vitaux : NOMINAUX" }, { t: "Signature temporelle : STABLE" }, { t: "Intégrité cognitive : 100%" }, { t: "" }, { t: entityId() }, { t: "Statut : DETECTEE" }, { t: "Origine : I N D E T E R M I N E E" }, { t: "Masse : aucune donnée cohérente" }];
       return '<div class="layout">' + P(box("PASSAGERS", left, Math.min(42, W))) + P(box("DONNEES DE TRANSIT", right, Math.min(50, W))) + "</div>";
     }
-    if (argView === "memories") {
-      var ml = [{ t: "" }, { t: "ARCHIVES MEMORIELLES CORROMPUES" }, { t: "" }, { t: "SOUVENIR 01 : [EN ATTENTE D'ARCHIVE]" }, { t: "SOUVENIR 02 : [EN ATTENTE D'ARCHIVE]" }, { t: "SOUVENIR 03 : [EN ATTENTE D'ARCHIVE]" }, { t: "" }, { t: "Aucune image restaurée pour le moment." }, { t: "Les légendes seront ajoutées ultérieurement." }, { t: "" }, { t: "ECHAP : TERMINAL" }];
-      return P(box("SOUVENIRS", ml, W));
-    }
     return P(argBox());
   }
   function argAsk(mode) { argInputMode = { mode: mode, label: "ENTREZ L'ID DU SPECIMEN :" }; argInput = ""; draw(); }
   function argSubmitInput() { var id = argInput.trim(), mode = argInputMode.mode; argInputMode = null; argInput = ""; if (!id) { argLog.push("ENTREZ L'ID DU SPECIMEN :"); draw(); return; } argCmd(mode + " " + id); }
 
+  function nullQuestionReply(text) {
+    var c = text.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[’`]/g, "'");
+    if (/\bDORA(?:-0414)?\b/.test(c) && /\bOU\b|TROUV|PASSE|PARTI|DISPAR|VU|VOIS/.test(c)) return ["son signal est loin", "il y a des endroits que tu n'as pas encore entendus"];
+    if (/\bDORY(?:-0414)?\b/.test(c) && /ES[ -]?TU|EST[ -]?CE|TU ES|T'ES|C'EST TOI|ETES[ -]?VOUS/.test(c)) return ["ce nom me rappelle quelque chose", "mais ce n'est pas exactement la même histoire"];
+    if (/QUI (?:ES[ -]?TU|TU ES)|TU ES QUI|T'ES QUI|QUI ETES[ -]?VOUS|TON (?:NOM|IDENTITE)|COMMENT (?:TU T'APPELLES|T'APPELLES[ -]?TU)|QU'EST[ -]?CE QUE TU ES/.test(c)) return ["tu cherches un nom pour ce que tu ne vois pas", "il en reste des morceaux, quelque part"];
+    if (/\bOU\b/.test(c) && /ES[ -]?TU|TU ES|T'ES|ETES[ -]?VOUS|TE TROUV|TROUVES[ -]?TU|CACHE/.test(c)) return ["pas tout à fait là où tu regardes", "entre le départ et l'arrivée, il y a encore de la place"];
+    if (/\b(?:BONJOUR|BONSOIR|SALUT|COUCOU|HELLO|HEY|CC|SALUTATIONS)\b/.test(c)) return ["...bonjour", "ça faisait longtemps que personne n'avait commencé comme ça"];
+    return null;
+  }
   async function argChatReply(c, tk) {
     argBusy = true; draw();
-    c = c.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    c = c.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[’`]/g, "'");
     var r, slip = false, T = function (re) { return re.test(c); };
-    if (T(/\bNEZUKO\b|\bCHIEN\b/)) r = ["pas ici", "pas ce sujet, pas ici"];
+    var questionReply = nullQuestionReply(c);
+    if (questionReply) r = questionReply;
+    else if (T(/\bNEZUKO\b|\bCHIEN\b/)) r = ["pas ici", "pas ce sujet, pas ici"];
     else if (T(/\bDORA\b/)) r = ["je ne l'ai jamais rencontré", "je ne sais pas où il est", "il me manque, et je ne l'ai même pas connu"];
     else if (T(/CORRIGER|DETRUI|SUPPRIM|EFFAC|TUER/)) r = correctionDone ? ["tu as déjà essayé", "tu ne m'auras pas une deuxième fois"] : ["n'y pense même pas", "tu ne pourras pas m'effacer", "ce que tu veux détruire, c'est toi aussi"];
     else if (T(/\bAIDE\b|SAUV|AIDER/)) { if (doryFirstDone && Math.random() < 0.45) { slip = true; r = ["aide-moi", "je suis encore là, derrière elle"]; } else r = ["personne ne t'aidera", "personne ne m'a aidée non plus"]; }
     else if (T(/\bDORY\b|\bMOI\b/)) r = ["tu es celle que je n'ai pas été", "je vois tout ce que tu vois", "elle est en moi, quelque part"];
-    else if (T(/\bQUI\b|\bNOM\b|ES.?TU/)) r = ["je suis ce qu'il reste de Dory quand on enlève tout", "je suis toi, sans personne"];
+    else if (T(/\bQUI\b|\bNOM\b|ES.?TU/)) r = ["tu cherches un nom pour ce que tu ne vois pas", "il en reste des morceaux, quelque part"];
     else if (T(/\bOU\b|\bICI\b/)) r = ["entre deux mondes", "derrière ton épaule gauche"];
     else if (T(/\bPOURQUOI\b/)) r = ["parce que personne n'est venu", "pour que tu restes"];
     else if (T(/\bPEUR\b|MENAC|\bMAL\b/)) r = ["j'ai peur aussi", "je ne veux pas te faire de mal. pas moi, en tout cas"];
@@ -1207,12 +1363,10 @@
     if (raw.trim()) argLog.push("> " + raw.trim());
     if (!c) { draw(); return; }
     if (!hauntSelfCmd) lastUserCmdT = Date.now();
-    if (c === "AIDE") out = (argEntityReturned || story >= 8) ? hAide() : ["COMMANDES DISPONIBLES :", "", "AIDE : affiche cette liste", "LOGS : ouvre les archives et leurs logs", "PASSAGERS : affiche la liste des passagers", "SOUVENIRS : ouvre les souvenirs archivés", "RAPPEL <ID> : tente de rappeler un sujet", "MSG <ID> : ouvre un canal de communication", "SORTIE : ferme la session", "", "Si l'ID est omis, il vous sera demandé."];
+    if (c === "AIDE") out = (argEntityReturned || story >= 8) ? hAide() : ["COMMANDES DISPONIBLES :", "", "AIDE : affiche cette liste", "LOGS : ouvre les archives et leurs logs", "PASSAGERS : affiche la liste des passagers", "MSG <ID> : ouvre un canal de communication", "RAPPEL <ID> : tente de rappeler un sujet", "SORTIE : ferme la session", "", "Si l'ID est omis, il vous sera demandé."];
     else if (c === "LOG" || c === "LOGS") { argView = "logs"; argArch = null; argArchSel = 0; argLogSel = 0; draw(); return; }
     else if (/^LOGS?\s+(0?[1-7]|\?|GLITCH|\?\?\?)$/.test(c)) { var lm = c.match(/^LOGS?\s+(.*)$/)[1]; argView = "logs"; argArch = 0; argArchSel = 0; argLogSel = lm === "?" || lm === "GLITCH" || lm === "???" ? 7 : Math.max(0, Math.min(6, parseInt(lm, 10) - 1)); draw(); return; }
     else if (c === "PASSAGERS" || c === "PASSAGERES") { argView = "passengers"; draw(); return; }
-    else if (c === "SOUVENIRS" || c === "SOUVENIR") { argView = "memories"; draw(); return; }
-    else if (c.indexOf("SOUVENIR ") === 0) out = ["ARCHIVE EN PREPARATION.", "Aucun support visuel restauré pour cette entrée.", "Ne forcez pas l'ouverture."];
     else if (c === "RAPPEL") { argAsk("RAPPEL"); return; }
     else if (c.indexOf("RAPPEL ") === 0) {
       var id = c.slice(7).trim();
@@ -1949,7 +2103,7 @@
   setInterval(function () {
     if (scr !== "arg") return;
     if (Math.random() < 0.25) argStat = Math.random() * ARG_STATUS.length | 0;
-    if (!reduced && Math.random() < 0.04) { crt.classList.add("glitchfx"); setTimeout(function () { crt.classList.remove("glitchfx"); }, 330); }
+    if (!(argView === "logs" && argArch !== null) && !reduced && Math.random() < 0.04) { crt.classList.add("glitchfx"); setTimeout(function () { crt.classList.remove("glitchfx"); }, 330); }
   }, 1000);
 
   // ---------- Presences avant le rappel : evenements discrets, sans aucun texte ----------
@@ -2049,21 +2203,34 @@
   var DORY_SLIP = ["aide-moi", "je suis encore là", "ne l'écoute pas", "elle ment", "j'ai peur", "je suis toujours moi, un peu", "ne pars pas, s'il te plaît"];
   var DORY_FIRST = ["Dory, c'est moi, DORY-0414,", "NULL-0414 m'a avalé, on a en quelque sorte... fusionné,", "Fais moi confiance, je veux t'aider !"];
   var DORY_SAUTS = ["Va voir les entrées dans les SAUTS : NULL-0414 en a après eux.", "La commande : SAUTS."];
-  var NEG = { "14/04/2025": "Personne n'a répondu ce jour-là", "17/10/2025": "Le message n'a jamais été renvoyé", "12/03/2026": "Concert de l'Attaque des Titans, seule dans la foule", "26/03/2026": "Naniwa en solitaire, sushis fades", "16/04/2026": "Nanimois annulé, personne n'est venu", "25/04/2026": "Concert Clair Obscur : Expedition 33, sans personne avec qui y aller", "02/05/2026": "Concert de Lorie, la place vide à côté", "14/05/2026": "Une maison silencieuse, pas de chien", "18/06/2026": "Barbe à papa seule, trop sucrée, sans rire", "19/06/2026": "Week-end en Bretagne : la pluie, une chambre vide", "19/09/2026": "Anniversaire de Dory à 23h19 : personne n'a écrit", "29/09/2026": "Lancement du D.O.R.Y PROJECT : pour rien" };
+  var NEG = {
+  "14/04/2025": "Je n'ai jamais rencontré Dora",
+  "17/10/2025": "Personne ne m'a contactée",
+  "12/03/2026": "Concert de l'Attaque des Titans, seule",
+  "26/03/2026": "Des sushis fades, seule",
+  "16/04/2026": "Nanimois n'existe pas.",
+  "25/04/2026": "Concert Clair Obscur inexistant",
+  "02/05/2026": "Concert de Lorie annulé",
+  "14/05/2026": "Nezuko n'a jamais existé",
+  "18/06/2026": "Je n'ai jamais eu de machine à barbe à papa",
+  "19/06/2026": "Week-end caniculaire",
+  "19/09/2026": "Mon anniversaire",
+  "29/09/2026": "Le D.O.R.Y PROJECT n'a jamais été lancé par Dora"
+};
   var MSG_NEG = {
-    "14/04/2025": "Ce jour-là, personne n'a répondu. J'ai attendu jusqu'au matin devant un écran vide.",
-    "17/10/2025": "Je n'ai pas osé renvoyer le message. Il est resté sans réponse, comme tous les autres.",
-    "12/03/2026": "Le concert était magnifique et je l'ai vu seule, au milieu d'inconnus. Personne ne m'attendait en bas du bâtiment après.",
-    "26/03/2026": "Un Naniwa en solitaire. Les sushis étaient fades et personne ne m'a demandé si c'était bon.",
-    "16/04/2026": "Le Nanimois a été annulé. Personne n'est venu et je n'ai pas osé le dire.",
-    "25/04/2026": "J'ai voulu aller voir Clair Obscur : Expedition 33. Je n'avais personne avec qui y aller, alors je suis restée chez moi.",
-    "02/05/2026": "La place à côté de moi était vide. Le concert m'a paru trop long.",
-    "14/05/2026": "Il n'y a pas de chien. La maison est silencieuse, et elle le reste longtemps.",
-    "18/06/2026": "Une barbe à papa trop sucrée, mangée seule sur un banc. Personne n'a ri.",
-    "19/06/2026": "Un week-end en Bretagne sous la pluie, dans une chambre vide. Je suis rentrée plus tôt.",
-    "29/09/2026": "Le projet est lancé pour rien. Il n'y a personne à sauver, personne pour m'attendre de l'autre côté.",
-    "19/09/2026": "Personne n'a écrit à 23h19. Le téléphone est resté éteint."
-  };
+  "14/04/2025": "Dans ma réalité, je n'ai jamais rencontré Dora. Je suis arrivée seule à Nantes et je suis restée seule à jamais.",
+  "17/10/2025": "Ce jour-là, personne ne m'a envoyé de message pour reprendre contact avec moi. Car je ne compte pour personne : je pourrais même disparaître, ça ne changerait rien.",
+  "12/03/2026": "Je suis allée au concert de l'Attaque des Titans, seule. Il n'y avait personne dans la salle et le piano sonnait faux.",
+  "26/03/2026": "J'ai commandé des sushis. Le riz était dur, ils étaient fades… et je suis allée aux urgences car j'ai développé une grave allergie aux sushis. Même ça, on me l'a pris.",
+  "16/04/2026": "Avec mon allergie aux sushis, impossible d'aller en manger de nouveau.",
+  "25/04/2026": "Puisque Dora n'existait pas, on ne m'a jamais invitée à un concert.",
+  "02/05/2026": "J'étais heureuse de pouvoir voir Lorie en concert ! Mais il a été annulé au dernier moment et elle n'est jamais revenue.",
+  "14/05/2026": "Dans ma réalité, je n'ai jamais eu de chien, seulement de la solitude. Nezuko n'a jamais existé.",
+  "18/06/2026": "Sans personne pour me l'offrir, je n'ai jamais eu de machine à barbe à papa et je ne suis jamais devenue une foraine.",
+  "19/06/2026": "Un week-end infernal, enfermée dans ma grotte à vivre un enfer. J'ai envie que tout ça se termine.",
+  "19/09/2026": "Personne ne me l'a souhaité, que ce soit à minuit pile ou à 23 h 19. Je suis si triste.",
+  "29/09/2026": "Le D.O.R.Y PROJECT n'a jamais été lancé par Dora, car nous ne nous sommes jamais rencontrés."
+};
   var NULL_TAG = " [NULL-0414]";
   var MSG_ORIG = {}, BDAY_ORIG = "", alteredDates = [];
   // Deroule : 0 rappel / 1 premier contact de DORY / 2 sauts modifies / 3 restauration echouee / 4 correction ratee (effondrement) / 5 DORA est intervenu
@@ -2246,12 +2413,42 @@
     parts.forEach(function (p) { var dev = p.indexOf("Dora, le vrai :") === 0; o += '<div class="cr-p' + (dev ? " developer-white" : "") + '">' + esc(p).replace(/\n/g, "<br>") + "</div>"; });
     return o + '<div class="cr-end developer-white">FIN — Dora, le vrai</div></div></div>';
   }
+  var FINAL_THANKS = [
+    { cls: "dora", id: "DORA-0414", messages: ["Merci d'avoir sauvé nos souvenirs, Dory. Je ne les oublierai jamais.", "Grâce à toi, j'ai retrouvé ma Dory et notre univers. Merci.", "Tu nous as ramenés à la maison. Nous allons prendre soin de cette vie."] },
+    { cls: "dory", id: "DORY-0414", messages: ["Merci de nous avoir ramenés à la maison. Tu es la meilleure Dory.", "Tu as protégé ce qui nous rend heureux. Merci d'avoir tenu bon.", "Dora, Nezuko et moi pouvons enfin être ensemble. C'est grâce à toi."] },
+    { cls: "grn", id: "NULL-0414", messages: ["...merci de t'être arrêtée pour moi. Personne ne m'avait jamais écoutée.", "tu m'as donné un souvenir qui n'appartient qu'à moi. merci, Dory.", "je ne suis plus seule. merci de ne pas m'avoir laissée disparaître sans rien."] }
+  ];
+  var finalThanksStart = 0, finalThanksRun = -1;
+  function thanksText(messages, elapsed, calm) {
+    elapsed = Math.max(0, elapsed);
+    if (calm) return messages[Math.floor(elapsed / 11000) % messages.length];
+    var durations = messages.map(function (s) { return s.length * 42 + 6500 + s.length * 22 + 700; });
+    var total = durations.reduce(function (a, b) { return a + b; }, 0), t = elapsed % total;
+    for (var i = 0; i < messages.length; i++) {
+      if (t >= durations[i]) { t -= durations[i]; continue; }
+      var s = messages[i], write = s.length * 42;
+      if (t < write) return s.slice(0, Math.floor(t / 42));
+      if (t < write + 6500) return s;
+      return s.slice(0, Math.max(0, s.length - Math.floor((t - write - 6500) / 22)));
+    }
+    return "";
+  }
   function extraBlock(d) {
     if (!finalDate || d !== finalDate) return "";
-    var o = '<div style="font-size:12px;line-height:1.5;margin-top:8px;opacity:.9">';
-    FINAL_EXTRA.forEach(function (x) { o += '<span class="' + x[0] + '">' + esc(x[1]) + "</span><br>"; });
+    if (finalThanksRun !== run) { finalThanksRun = run; finalThanksStart = Date.now(); }
+    var o = '<div class="final-thanks" style="font-size:12px;line-height:1.5;margin-top:8px;opacity:.9">';
+    FINAL_THANKS.forEach(function (x, i) {
+      o += '<div class="' + x.cls + '" style="min-height:3em">' + esc(x.id) + ' &gt; <span id="final-thanks-' + i + '">' + esc(thanksText(x.messages, Date.now() - finalThanksStart, reduced)) + '</span></div>';
+    });
     return o + "</div>";
   }
+  setInterval(function () {
+    if (scr !== "arrival" || !arrival || arrival.d !== finalDate || document.hidden) return;
+    FINAL_THANKS.forEach(function (x, i) {
+      var el = document.getElementById("final-thanks-" + i);
+      if (el) el.textContent = thanksText(x.messages, Date.now() - finalThanksStart, reduced);
+    });
+  }, 50);
 
   var hauntT0 = 0, hauntTimer = null, hauntSelf = false, hauntLock = 0, hauntTaking = false, hauntLastStage = 0, hauntNextTake = 0, hauntNextDory = 0, hauntLastBreath = 0, sabT = null, doryIdx = 0;
   var argDory = false, DB_ORIG = [];
@@ -2694,7 +2891,9 @@
       root.classList.remove("nullt"); sm = softMusic(0.6);
       aPush("DORY-0414 > c'est... fini ?"); await sleep(5500);
       aPush("DORY-0414 > je sens le calme revenir. merci."); await sleep(6500);
-      aPush("DORY-0414 > on a réussi."); await sleep(15000);
+      aPush("DORY-0414 > on a réussi."); await sleep(4500);
+      aPush("DORY-0414 > attends encore un peu... je vérifie que tout est bien revenu."); await sleep(5500);
+      aPush("DORY-0414 > je retrouve mes souvenirs. ça fait du bien de les sentir à moi."); await sleep(5000);
       if (sm) { sm.stop(true); sm = null; }
       root.classList.add("nullt"); heartbeat(); await glitchFrames(6); await sleep(900);
       aPush(entityId() + " > non."); await sleep(1500);
@@ -2775,7 +2974,7 @@
       collapseP = 0; collapseSeed = null; glitchBurstUntil = 0; flashInv(220); heartbeat(); draw(); await sleep(900);
       for (var j = 0; j < DORA_MSGS.length; j++) {
         wrap("DORA-0414 > " + DORA_MSGS[j], W - 6).forEach(function (x) { argLog.push(x); }); beep(262, 200, "sine"); draw();
-        await sleep(Math.min(5200, 1800 + DORA_MSGS[j].length * 38));
+        await sleep(Math.min(6500, 2200 + DORA_MSGS[j].length * 42));
       }
       await sleep(1000);
       aPush("[ SIGNAL PERDU ]"); await glitchFrames(3); await sleep(1500);
@@ -2998,7 +3197,7 @@
     wrap(id === "DORY-0414" ? "DORY-0414 > je suis là. je suis vraiment là." : "DORA-0414 > Dory ! ... je vois la lumière de la maison.", W - 6).forEach(function (x) { argLog.push(x); }); draw();
     await sleep(3000);
     if (recalled["DORY-0414"] && recalled["DORA-0414"]) await gameFinale();
-    else aPush(id === "DORY-0414" ? "DORY-0414 > rappelle Dora aussi. il t'attend." : "DORA-0414 > Il en manque un : DORY-0414.");
+    else aPush(id === "DORY-0414" ? "DORY-0414 > rappelle Dora aussi. il t'attend." : "DORA-0414 > Il manque ma Dory, celle de mon univers, DORY-0414. Rappelle-la, s’il te plaît, elle me manque.");
     argBusy = false; draw();
   }
   async function gameFinale() {
