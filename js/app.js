@@ -58,7 +58,7 @@
     W = w; document.body.style.fontSize = fs.toFixed(1) + "px";
   }
 
-  // ---------- Particules thematiques (masquees si Classique / OFF / effets reduits) ----------
+  // ---------- Particules thematiques (independantes des effets reduits) ----------
   (function () {
     var box = document.createElement("div"); box.id = "petals";
     var colors = ["#ffbc4f", "#e67825", "#a84315", "#eab86b", "#ffb6d9", "#ffe39e", "#a9f4a1", "#ffe095"];
@@ -735,16 +735,20 @@
     ];
     var L = [{ t: "" }];
     rows.forEach(function (r, i) { L.push({ t: (i === oi ? "> " : "  ") + r[0].padEnd(15) + ": " + r[1], sel: i === oi, act: "o:" + i }); });
-    L.push({ t: "" }, { t: "HAUT/BAS : CHOISIR   GAUCHE/DROITE : REGLER" }, { t: "ENTREE : BASCULER (ON/OFF, PISTE, THEME, EFFETS)" },
-      { t: "PISTE : 1 SPACE CONTINUUM  2 TIME PARADOX  3 SPACE JUMP" + (arg26() ? "  4 ARG 2026" : "") },
-      { t: "TOUCHES 1, 2, 3 : CHOISIR LA PISTE DIRECTEMENT" },
-      { t: "TOUCHER UNE LIGNE : BASCULER (VOLUME : +10 %)" },
-      { t: "SONS NEZUKO : BRUITS DE NEZUKO (SUIT SONS ET VOLUME SONS)" },
-      { t: "GAUCHE/DROITE SUR THEME : CHANGER D'AMBIANCE" },
-      { t: "AUTOMNE : FEUILLES   HIVER : NEIGE   PRINTEMPS : FLEURS" },
-      { t: "ETE : COUCHER DE SOLEIL   (CLASSIQUE : AUCUNE PARTICULE)" },
-      { t: "(PARTICULES MASQUEES SI EFFETS REDUITS = ON)" },
-      { t: "RACCOURCIS : S = SONS   M = MUSIQUE   T = THEME" }, { t: "ECHAP : RETOUR" });
+    var hints = [
+      "Active ou désactive les bruitages, y compris ceux de Nezuko.",
+      "Règle le volume des bruitages et des sons de Nezuko.",
+      "Active ou désactive les sons de Nezuko : aboiements, ronflements…",
+      "Active ou désactive la musique d'ambiance.",
+      "Choisit une musique parmi les pistes disponibles et débloquées.",
+      "Règle le volume de la musique d'ambiance.",
+      "Change les couleurs et l'ambiance visuelle du terminal.",
+      "Active ou désactive les particules associées au thème choisi.",
+      "Réduit les clignotements, secousses et inversions, sans couper les particules."
+    ];
+    L.push({ t: "" });
+    wrap(hints[oi] || "", Math.min(58, W - 3)).forEach(function (line) { L.push({ t: line }); });
+    L.push({ t: "" }, { t: "ECHAP : RETOUR" });
     return box("OPTIONS", L, 62);
   }
   function loginBox() {
@@ -870,6 +874,7 @@
     if (scr === "arrival" && arrival && arrival.d) showPhotos(arrival.d, run, true);   // recharge les photos apres un redessin (rotation, redimensionnement)
   }
   function go(s) {
+    if (scr === "ss" && s !== "ss") stopSleepMusic();
     if (scr === "endscr" && s !== "endscr") { var rt = document.documentElement; rt.classList.remove("arg"); rt.classList.remove("nullt"); rt.classList.remove("nullgrn"); }
     if (s === "endscr") document.documentElement.classList.add("arg");
     if (scr === "arg" && s !== "arg") argLeave();
@@ -1920,15 +1925,38 @@
 
   // Ecran de veille
   var sx = 2, sy = 1, sdx = 1, sdy = 1, si = 0;
+  var SS_MUSIC_INTERVAL = 5 * 60 * 1000, ssMusicNext = 0, ssMusicPrevious = null;
+  function startSleepMusic() {
+    ssMusicPrevious = mus.track;
+    ssMusicNext = Date.now() + SS_MUSIC_INTERVAL;
+  }
+  function updateSleepMusic() {
+    if (scr !== "ss" || document.hidden || Date.now() < ssMusicNext) return;
+    ssMusicNext = Date.now() + SS_MUSIC_INTERVAL;
+    if (!mus.on || !mus.ready || musVol <= 0) return;
+    var available = (arg26() ? [0, 1, 2, 4] : [0, 1, 2]).filter(function (track) { return track !== mus.track; });
+    if (!available.length) return;
+    mus.track = available[Math.floor(Math.random() * available.length)];
+    startTrack();
+  }
+  function stopSleepMusic() {
+    var previous = ssMusicPrevious;
+    ssMusicPrevious = null; ssMusicNext = 0;
+    if (previous !== null && mus.track !== previous) {
+      mus.track = previous;
+      if (mus.ready) startTrack();
+    }
+  }
   var SSM = [["NEZUKO DEMANDE", "SA PROMENADE"], ["ENVIE DE SUSHIS", "DETECTEE"], ["BARBE A PAPA", "REQUISE (ROSE)"], ["HELLO KITTY", "VOUS SURVEILLE"], ["LES JUNIMOS", "SONT EN GREVE"]];
   setInterval(function () {
-    if (scr === "menu" && !argEntityReturned && Date.now() - idle > 45000) { scr = "ss"; setBare(); }
+    if (scr === "menu" && !argEntityReturned && Date.now() - idle > 45000) { scr = "ss"; startSleepMusic(); setBare(); }
     if (scr !== "ss") return;
+    updateSleepMusic();
     var maxx = Math.max(2, Math.min(42, W - 32));
     sx += sdx * 2; sy += sdy; var b = false;
     if (sx <= 0 || sx >= maxx) { sdx = -sdx; b = true; sx = Math.max(0, Math.min(maxx, sx)); }
     if (sy <= 0 || sy >= 14) { sdy = -sdy; b = true; sy = Math.max(0, Math.min(14, sy)); }
-    if (b) { si = (si + 1) % SSM.length; beep(300, 40); }
+    if (b) { si = (si + 1) % SSM.length; }
     var lines = box("VEILLE", [{ t: "" }, { t: SSM[si][0] }, { t: SSM[si][1] }, { t: "" }], 28).split("\n").map(function (l) { return " ".repeat(sx) + l; });
     $("main").innerHTML = P("\n".repeat(sy) + lines.join("\n"));
   }, 300);
@@ -2008,12 +2036,12 @@
   var HAUNT_OK = GHOST_OK.concat(["arg"]);
   function thump() { beep(50, 300, "sine"); }
   function heartbeat() { thump(); setTimeout(function () { beep(50, 380, "sine"); }, 320); }
-  function flashInv(ms) { if (reduced) return; fxAdd("inv"); setTimeout(function () { crt.classList.remove("inv"); }, ms || 150); }
+  function flashInv(ms) { if (reduced || scr !== "arg") return; fxAdd("inv"); setTimeout(function () { crt.classList.remove("inv"); }, ms || 150); }
   function glitchNow() { if (reduced) return; crt.classList.add("glitchfx"); setTimeout(function () { crt.classList.remove("glitchfx"); }, 330); }
   var GHOST_FX = [
     function () { var t = document.title; document.title = "NULL-0414"; setTimeout(function () { document.title = t; }, 3500); },
     function () { glitchNow(); beep(48, 300, "sawtooth"); },
-    function () { flashInv(150); thump(); },
+    function () { thump(); },
     function () { thump(); },
     function () { heartbeat(); }
   ];

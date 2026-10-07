@@ -10,7 +10,7 @@
   :root.summer { --fg: #ffd485; --bg: #24061f; --glow: rgba(255,151,63,.78); }
   html, body { margin: 0; background: var(--bg); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   body { font-family: "Courier New", Courier, monospace; font-size: 16px; line-height: 1.25; color: var(--fg); text-shadow: 0 0 4px var(--glow); }
-  #crt { position: relative; min-height: 100vh; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; background: var(--bg); overflow-x: auto; animation: flick 5s infinite; }
+  #crt { position: relative; min-height: 100vh; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; background: var(--bg); overflow-x: auto; animation: none; }
   #crt::after { content: ""; position: fixed; inset: 0; pointer-events: none;
     background: repeating-linear-gradient(0deg, rgba(0,0,0,.3) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.65) 100%); }
   @media (max-width: 700px) { #crt { padding: 12px 10px 20px; } }
@@ -112,11 +112,10 @@
   .developer-white, .developer-white * { color: #fff !important; text-shadow: 0 0 4px rgba(255,255,255,.35) !important; }
   @keyframes glitchshift { 0% { transform: translate(0,0); } 20% { transform: translate(-1px,0); } 40% { transform: translate(1px,0); } 60% { transform: translate(-1px,0); } 80% { transform: translate(1px,0); } 100% { transform: translate(0,0); } }
   html.arg #crt.glitchfx { animation: glitchshift .16s steps(1) 2; }
-  /* Option "effets reduits" : plus de scintillement, de clignotement, de tremblement, d'inversion ni de petales */
+  /* Effets reduits : scintillement, clignotement, tremblement et inversion uniquement. */
   html.calm #crt, html.calm .cursor { animation: none; }
   html.calm #crt.inv { filter: none; }
-  html.calm #petals { display: none !important; }
-  @media (prefers-reduced-motion: reduce) { #crt, .cursor { animation: none; } #crt.inv { filter: none; } #petals { display: none !important; } }
+  @media (prefers-reduced-motion: reduce) { #crt, .cursor { animation: none; } #crt.inv { filter: none; } }
 
   html.arg.archive-reading #crt { animation: none !important; }
   .archive-reader { --fg: #eeeeee; --bg: #080b0d; --glow: rgba(238,238,238,.25); color: var(--fg); text-shadow: 0 0 3px var(--glow); }
