@@ -96,7 +96,7 @@
     } catch (e) {}
   }
   // Effets visuels (ignores en mode "effets reduits")
-  function fxAdd(c) { if (!reduced && story < 8) crt.classList.add(c); }
+  function fxAdd(c) { if (!reduced && (story < 8 || (c === "shake" && scr === "jump"))) crt.classList.add(c); }
   function fxToggle(c, on) { if (story >= 8) { crt.classList.remove(c); return; } if (!reduced) crt.classList.toggle(c, on); }
 
   // ---------- Cadres ASCII ----------
@@ -525,6 +525,7 @@
     return new Promise(function (r) { var i = new Image(); i.onload = function () { r(true); }; i.onerror = function () { r(false); }; i.src = url; });
   }
   async function findPhotos(d) {
+    if(arrivalSaut&&arrivalSaut[0]===d&&arrivalSaut.entryPhotos)return arrivalSaut.entryPhotos;
     if (customPhotos && Object.prototype.hasOwnProperty.call(customPhotos, d)) return customPhotos[d];
     if (PH_DEL[d]) return [];
     if (PH[d] && PH[d].length) return PH[d];          // un resultat vide n'est pas memorise (une erreur reseau peut etre passagere)
@@ -539,28 +540,29 @@
   }
   // Entrées publiées via gestion-sauts.html, indépendantes du scénario.
   var customSauts = [], customPhotos = Object.create(null);
+  var selectedSaut=null,arrivalSaut=null;
+  function argSautEligible(r) {
+    return !r.custom&&!r.gifted&&!!NEG[r[0]]&&r[0].split("/").reverse().join("")<="20260929";
+  }
+  function restoreScenarioRows(rows) {
+    var keep=DB.filter(function(r){return !argSautEligible(r)});
+    DB.length=0;rows.forEach(function(r){DB.push(r)});keep.forEach(function(r){if(DB.indexOf(r)<0)DB.push(r)});
+  }
+  function arrivalCaps(d) {
+    return arrivalSaut&&arrivalSaut[0]===d&&arrivalSaut.entryCaptions?arrivalSaut.entryCaptions:CAP[d];
+  }
   function applyCustomSauts() {
-    var hidden = argEntityReturned || collapsing || creerOn || theme === "null";
-    var selected = DB[dbi];
-    for (var i = DB.length - 1; i >= 0; i--) if (DB[i].custom && !hidden && (DB[i][0] === finalDate || DB[i][0] === giftedMemoryDate)) DB.splice(i, 1);
-    if (hidden) return;
-    var added = false;
-    customSauts.forEach(function (e) {
-      var d = DorySauts.displayDate(e.date);
-      if (d === finalDate || d === giftedMemoryDate) return;
-      if (!DB.some(function (r) { return r[0] === d; })) {
-        var row = [d, e.title]; if (e.time) row.push(e.time.length === 5 ? e.time + ":00" : e.time);
-        row.custom = true; DB.push(row); added = true;
-      }
-      MSG[d] = e.message; CAP[d] = e.photos.map(function (p) { return p.caption; });
-      customPhotos[d] = e.photos.map(function (p) { return p.path; });
-      delete PH_DEL[d];
+    var selected=DB[dbi],added=false;
+    customSauts.forEach(function(e){
+      var d=DorySauts.displayDate(e.date),row=DB.filter(function(r){return r.custom&&(r.entryId===e.id||(!r.entryId&&r[0]===d))})[0];
+      if(!row){row=[d,e.title];row.custom=true;DB.push(row);added=true}
+      row[0]=d;row[1]=e.title;if(e.time)row[2]=e.time.length===5?e.time+":00":e.time;
+      row.entryId=e.id;row.entryMessage=e.message;row.entryPhotos=e.photos.map(function(p){return p.path});row.entryCaptions=e.photos.map(function(p){return p.caption});
+      MSG[d]=e.message;CAP[d]=row.entryCaptions;customPhotos[d]=row.entryPhotos;
     });
-    if (added) {
-      DB.sort(function (a,b) { return a[0].split('/').reverse().join('-').localeCompare(b[0].split('/').reverse().join('-')); });
-      if (selected && DB.indexOf(selected) >= 0) dbi = DB.indexOf(selected);
-    }
-    dbi = Math.max(0, Math.min(dbi, DB.length - 1));
+    applyFinalEntry();
+    if(added)DB.sort(function(a,b){return a[0].split("/").reverse().join("-").localeCompare(b[0].split("/").reverse().join("-"))});
+    if(selected&&DB.indexOf(selected)>=0)dbi=DB.indexOf(selected);dbi=Math.max(0,Math.min(dbi,DB.length-1));
   }
   async function loadCustomSauts() {
     if (location.protocol === 'file:') { console.info('SAUTS supplémentaires : utiliser un serveur HTTP local ou GitHub Pages.'); return; }
@@ -586,7 +588,7 @@
       var fig = document.createElement("figure"), img = document.createElement("img"), cap = document.createElement("figcaption");
       img.src = u; img.alt = "Souvenir du " + d; img.title = "Cliquer pour agrandir";
       img.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); openLb(urls, i, d); };
-      cap.textContent = "PHOTO " + (i + 1) + "/" + urls.length + (CAP[d] && CAP[d][i] ? " - " + CAP[d][i] : "");
+      cap.textContent = "PHOTO " + (i + 1) + "/" + urls.length + (arrivalCaps(d) && arrivalCaps(d)[i] ? " - " + arrivalCaps(d)[i] : "");
       fig.appendChild(img); fig.appendChild(cap); el.appendChild(fig);
     });
     if (!quiet) beep(1100, 80);
@@ -600,7 +602,7 @@
     var img = document.createElement("img"), c = document.createElement("div");
     img.src = lb.u[lb.i]; img.alt = "Souvenir du " + lb.d;
     c.className = "lbcap";
-    c.textContent = "PHOTO " + (lb.i + 1) + "/" + lb.u.length + " - " + lb.d + (CAP[lb.d] && CAP[lb.d][lb.i] ? " - " + CAP[lb.d][lb.i] : "") +
+    c.textContent = "PHOTO " + (lb.i + 1) + "/" + lb.u.length + " - " + lb.d + (arrivalCaps(lb.d) && arrivalCaps(lb.d)[lb.i] ? " - " + arrivalCaps(lb.d)[lb.i] : "") +
       (lb.u.length > 1 ? "   GAUCHE/DROITE : NAVIGUER" : "") + "   ECHAP OU TOUCHER : FERMER";
     o.appendChild(img); o.appendChild(c);
     if (lb.u.length > 1) {
@@ -878,7 +880,7 @@
     if (scr !== "arg") h = h.replace(/NULL-0414/g, '<span class="ent">NULL-0414</span>').replace(/DORY-0414/g, '<span class="dory">DORY-0414</span>').replace(/DORA-0414/g, '<span class="dora">DORA-0414</span>');
     if (scr === "arg" || scr === "endscr") h = cmdColor(h);
     if (!readingArchive && (collapseP > 0 || Date.now() < glitchBurstUntil)) h = eraseHtml(h, Date.now() < glitchBurstUntil ? Math.max(collapseP, 0.2) : collapseP);
-    h = (scr === "arrival" && finalDate && arrival && arrival.d === finalDate) ? finalGreen(h) : idColor(h, "ent");
+    h = (scr === "arrival" && arrivalSaut && arrivalSaut.gifted) ? finalGreen(h) : idColor(h, "ent");
     $("main").innerHTML = h;
     renderBar();
     if (scr === "arrival" && arrival && arrival.d) showPhotos(arrival.d, run, true);   // recharge les photos apres un redessin (rotation, redimensionnement)
@@ -892,7 +894,7 @@
     if (s === "login") lgb = "";
     if (s === "opt") oi = 0;
     if (s === "arg") { argView = null; argInputMode = null; argInput = ""; argChat = false; }
-    if (s === "nav") { f = target.match(/\d+/g).map(Number); nf = 0; }
+    if (s === "nav") { selectedSaut=null; f = target.match(/\d+/g).map(Number); nf = 0; }
     if (s === "logs") { logs = []; for (var i = 0; i < 6; i++) addLog(); }
     if (s === "para") { pl = []; pp = 0; }
     if (s === "pw") pwb = "";
@@ -1609,7 +1611,7 @@
     if (scr === "db") {
       if (k === "ArrowDown") dbi = (dbi + 1) % DB.length;
       else if (k === "ArrowUp") dbi = (dbi + DB.length - 1) % DB.length;
-      else if (k === "Enter") { target = DB[dbi][0] + " - " + (DB[dbi][2] || "20:00:00"); st = "DATE CIBLE DEFINIE : " + target; sq = true; syes = true; beep(1000, 120); draw(); return; }
+      else if (k === "Enter") { selectedSaut=DB[dbi]; target = DB[dbi][0] + " - " + (DB[dbi][2] || "20:00:00"); st = "DATE CIBLE DEFINIE : " + target; sq = true; syes = true; beep(1000, 120); draw(); return; }
       else return;
       st = ""; beep(440, 40); draw(); return;
     }
@@ -2026,20 +2028,20 @@
       crt.classList.remove("inv");
     } else { beep(1200, 150, "sine"); await sleep(400); }
     if (tk !== run) return;
-    var ev = DB.filter(function (x) { return x[0] === d; })[0];
+    var ev=selectedSaut&&selectedSaut[0]===d&&DB.indexOf(selectedSaut)>=0?selectedSaut:DB.filter(function(x){return x[0]===d&&!x.gifted})[0]||DB.filter(function(x){return x[0]===d})[0];arrivalSaut=ev;
     if (d === "19/09/2026") { await birthday(tk); return; }
     var L = [{ t: "" }, { t: "ARRIVEE : " + target }, { t: "SAUT REUSSI. STABILITE : " + (60 + Math.random() * 39 | 0) + "%" }, { t: "" }];
     wrap(ev ? "EVENEMENT DETECTE : " + ev[1] : dt > now ? "DESTINATION DANS LE FUTUR : aucun sushi n'y est encore prêt." : "AUCUN EVENEMENT CLE A CETTE DATE. Le continuum est calme. Nezuko dort.", W - 4)
       .forEach(function (x) { L.push({ t: x }); });
-    if (ev && MSG[d]) {
+    if (ev && (ev.entryMessage || MSG[d])) {
       L.push({ t: "" });
-      var sections = MSG[d].split("Dora, le vrai :");
+      var sections = (ev.entryMessage || MSG[d]).split("Dora, le vrai :");
       wrap("MESSAGE : " + sections[0], W - 4).forEach(function (x) { L.push({ t: x, h: alteredDates.indexOf(d) >= 0 ? redH(x) : undefined }); });
       if (sections.length > 1) wrap("Dora, le vrai :" + sections.slice(1).join("Dora, le vrai :"), W - 4).forEach(function (x) { L.push({ t: x, h: '<span class="developer-white">' + esc(x) + "</span>" }); });
     }
     L.push({ t: "" }, { t: "ECHAP : RETOUR AU MENU DES SAUTS" });
-    arrival = { html: P(box("ARRIVEE", L, W)) + (ev ? photosBlock(d) + extraBlock(d) : ""), d: ev ? d : null };
-    if (finalDate && arrival.d === finalDate) arrival.html = finalGreen(arrival.html);
+    arrival = { html: P(box("ARRIVEE", L, W)) + (ev ? photosBlock(d) + (ev.gifted?extraBlock(d):"") : ""), d: ev ? d : null };
+    if (arrivalSaut && arrivalSaut.gifted) arrival.html = finalGreen(arrival.html);
     scr = "arrival"; setBare(); $("main").innerHTML = arrival.html; beep(1000, 200);
     if (ev) showPhotos(d, tk);
   }
@@ -2058,7 +2060,7 @@
     wrap(BDAY_MSG, W - 4).forEach(function (x) { L.push({ t: x, h: alteredDates.indexOf("19/09/2026") >= 0 ? redH(x) : undefined }); });
     L.push({ t: "" }, { t: "ECHAP : RETOUR AU MENU DES SAUTS" });
     arrival = { html: P(esc(rows.slice(0, 3).join("\n")) + "\n" + box("ANNIVERSAIRE DE DORY", L, W)) + photosBlock("19/09/2026"), d: "19/09/2026" };
-    if (finalDate && arrival.d === finalDate) arrival.html = finalGreen(arrival.html);
+    if (arrivalSaut && arrivalSaut.gifted) arrival.html = finalGreen(arrival.html);
     scr = "arrival"; setBare(); $("main").innerHTML = arrival.html;
     showPhotos("19/09/2026", tk);
   }
@@ -2075,7 +2077,7 @@
     if (!reduced || argTick % 7 === 0) draw();
   }, 150);
   setInterval(function () {
-    if (scr !== "arg") return;
+    if (scr !== "arg" || story >= 8) return;
     if (Math.random() < 0.25) argStat = Math.random() * ARG_STATUS.length | 0;
     if (!(argView === "logs" && argArch !== null) && !reduced && Math.random() < 0.04) { crt.classList.add("glitchfx"); setTimeout(function () { crt.classList.remove("glitchfx"); }, 330); }
   }, 1000);
@@ -2344,7 +2346,7 @@
     ambStop(); argWhiteNoise(false);
     if (creerSM) { creerSM.stop(true); creerSM = null; }
     if (theme !== "null" && DB_ORIG.length) {
-      DB.length = 0; DB_ORIG.forEach(function (x) { DB.push(x.slice()); });
+      restoreScenarioRows(DB_ORIG.map(function(x){return x.slice()}));
       Object.keys(MSG_ORIG).forEach(function (k) { MSG[k] = MSG_ORIG[k]; });
       if (BDAY_ORIG) BDAY_MSG = BDAY_ORIG;
       PH_DEL = {}; alteredDates = [];
@@ -2359,7 +2361,7 @@
     recalled["DORY-0414"] = true; recalled["DORA-0414"] = true; story = 10;
     if (!finalDate) {
       var d = new Date(), z = function (n) { return String(n).padStart(2, "0"); };
-      finalDate = giftedMemoryDate || (z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear());
+      finalDate = z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear();
     }
     store.set("mop_halloween26", finalDate);
     if (THEMES.indexOf("null") < 0) THEMES.push("null");
@@ -2375,8 +2377,10 @@
     if (mus.ready) applyMusic(0.5);
   }
   function applyFinalEntry() {
-    var date=finalDate||giftedMemoryDate;if(!date)return;MSG[date]=FINAL_MSG;
-    var row=DB.filter(function(x){return x[0]===date&&(x[1]===FINAL_TITLE||x.gifted)})[0];if(!row){row=[date,FINAL_TITLE];DB.push(row)}row.gifted=true;
+    var date=finalDate||giftedMemoryDate;if(!date)return;
+    var row=DB.filter(function(r){return r.gifted||(!r.custom&&r[0]===date&&r[1]===FINAL_TITLE)})[0];
+    if(!row){row=[date,FINAL_TITLE];DB.push(row)}
+    row[0]=date;row.gifted=true;row.entryId="arg-halloween-2026";row.entryMessage=FINAL_MSG;row.entryPhotos=[];row.entryCaptions=[];
   }
   applyFinalEntry();
   function creditsBlock(d) {
@@ -2706,7 +2710,7 @@
   }
   async function sautsEditLoop(n) {
     while (n-- > 0 && scr === "db") {
-      var candidates = DB.filter(function(row) { return !isNull(row) && NEG[row[0]]; });
+      var candidates = DB.filter(function(row) { return !isNull(row) && argSautEligible(row); });
       if (!candidates.length) break;
       var row = hRand(candidates);
       dbi = DB.indexOf(row); st = entityId() + " > " + hRand(["ce souvenir est à moi.", "je me souviens. moi.", "ce jour-là, c'était moi."]);
@@ -2733,7 +2737,7 @@
     finally { hauntTaking = false; hauntLock = 0; hauntNextTake = Date.now() + 8000; hauntNextDory = Math.min(hauntNextDory, Date.now() + 25000); draw(); }
   }
   async function nullTakeAllSauts() {
-    var rows=DB.filter(function(r){return !!NEG[r[0]]}),texts=rows.map(function(r){return NEG[r[0]]+NULL_TAG});st=entityId()+" > tout est à moi.";glitchNow();thump();rows.forEach(function(r){r.n=true});
+    var rows=DB.filter(function(r){return argSautEligible(r)}),texts=rows.map(function(r){return NEG[r[0]]+NULL_TAG});st=entityId()+" > tout est à moi.";glitchNow();thump();rows.forEach(function(r){r.n=true});
     for(var k=0;k<=24&&scr==="db";k++){rows.forEach(function(r,i){r[1]=texts[i].slice(0,Math.ceil(texts[i].length*k/24))+(k<24?"_":"")});draw();if(k%3===0)beep(90+k*12,40,"sawtooth");await sleep(reduced?40:65)}
     rows.forEach(function(r,i){r[1]=texts[i];alterMemory(r[0])});dbi=Math.max(0,Math.min(dbi,DB.length-1));draw();
   }
@@ -3012,26 +3016,13 @@
     if (t >= 0.5) root.classList.remove("nullt"); else root.classList.add("nullt");
   }
   function creerBox() {
-    var c = creer || { lines: [], cur: null, btn: null, prog: 0, fused: [] };
-    var Lw = Math.min(60, W), Rw = Math.min(42, W), L = [{ t: "" }];
-    c.lines.slice(-12).forEach(function (o) { L.push(maskedLine(o.t, o.mask, o.base)); });
-    if (c.cur) L.push(maskedLine(c.cur.t + "_", c.cur.mask, "ent"));
-    L.push({ t: "" });
-    if (c.btn) {
-      var bs = "[ " + c.btn.text + " ]";
-      bs = bs.slice(0, Lw - 2);
-      L.push({ t: bs, h: '<span class="btnr">' + esc(bs) + "</span>", act: "k:Enter" });
-      L.push({ t: "ENTREE OU CLIC SUR LE BOUTON POUR REPONDRE" });
-    } else L.push({ t: "..." });
-    var R = [{ t: "" }, { t: "RECONFORT : [" + bar(c.prog * 100, 14) + "] " + String(Math.round(c.prog * 100)).padStart(3) + "%" }, { t: "" }];
-    c.fused.forEach(function (x) { splitLine("+ " + x, Rw).forEach(function (s) { R.push({ t: s, h: '<span class="wht">' + esc(s) + "</span>" }); }); });
-    R.push({ t: "" }, { t: "SOUVENIRS EN ATTENTE : " + (12 - c.fused.length) });
-    function fixed(rows,w) {
-      var h=Math.max(14,Math.min(24,argPanelRows())),out=[];
-      rows.forEach(function(r){if(r.h)out.push(r);else splitLine(r.t,w).forEach(function(t){out.push({t:t,act:r.act})})});
-      var foot=out.slice(-6),body=out.slice(0,-6).slice(-(h-6));while(foot.length<6)foot.unshift({t:""});while(body.length<h-6)body.push({t:""});return body.concat(foot);
-    }
-    return '<div class="creer-fixed-layout'+(window.innerWidth>=1100&&W>=108?' two-columns':'')+'">'+P(box("VIE DE NULL-0414",fixed(L,Lw),Lw))+P(box("SOUVENIRS FUSIONNES",fixed(R,Rw),Rw))+"</div>";
+    var c=creer||{lines:[],cur:null,btn:null,fused:[]},lw=Math.min(60,W),rw=Math.min(42,W),height=Math.max(14,Math.min(24,argPanelRows()));
+    function expand(rows,w){var out=[];rows.forEach(function(r){if(r.h)out.push(r);else splitLine(r.t,w).forEach(function(t){out.push({t:t,act:r.act})})});return out}
+    function fixed(history,foot,w){foot=expand(foot,w).slice(0,6);while(foot.length<6)foot.push({t:""});var body=history.slice(-(height-6));while(body.length<height-6)body.push({t:""});return body.concat(foot)}
+    var left=c.lines.map(function(o){return maskedLine(o.t,o.mask,o.base)});if(c.cur)left.push(maskedLine(c.cur.t+"_",c.cur.mask,"ent"));
+    var foot=[{t:""}];if(c.btn){wrap("[ "+c.btn.text+" ]",lw-3).forEach(function(t){foot.push({t:t,h:'<span class="btnr">'+esc(t)+'</span>',act:"k:Enter"})});foot.push({t:"ENTREE OU CLIC POUR REPONDRE"})}else foot.push({t:"..."});
+    var right=[];c.fused.forEach(function(x){splitLine("+ "+x,rw).forEach(function(t){right.push({t:t,h:'<span class="wht">'+esc(t)+'</span>'})})});
+    return '<div class="creer-fixed-layout'+(window.innerWidth>=1100&&W>=108?' two-columns':'')+'">'+P(box("VIE DE NULL-0414",fixed(left,foot,lw),lw))+P(box("SOUVENIRS FUSIONNES",fixed(right,[{t:""},{t:"SOUVENIRS EN ATTENTE : "+(12-c.fused.length)}],rw),rw))+"</div>";
   }
   function creerPress() { if (creer && creer.btn && creer.res) { var r = creer.res; creer.res = null; r(); } }
   function creerUpdateSoft() {
@@ -3053,9 +3044,8 @@
     await sleep(150);
   }
   function creerRestoreEntry(k) {
-    DB.length = 0;
-    DB_ORIG.forEach(function (o, i) { if (i <= k) DB.push(o.slice()); else { var e = [o[0], NEG[o[0]] + NULL_TAG]; if (o[2]) e.push(o[2]); e.n = true; DB.push(e); } });
-    unalterMemory(DB_ORIG[k][0]); dbi = 0;
+    var rows=DB_ORIG.map(function(o,i){var r=o.slice();if(i>k){r[1]=NEG[o[0]]+NULL_TAG;r.n=true}return r});
+    restoreScenarioRows(rows);unalterMemory(DB_ORIG[k][0]);dbi=0;
   }
   function creerStart() {
     creerOn = true; story = Math.max(story, 7); creerT = 0; creerSoft = 0;
@@ -3068,7 +3058,7 @@
     var view=argView,busy=argBusy;scr="db";argFrame="";sq=false;argBusy=true;setBare();fit();
     var row=DB.filter(function(x){return x.gifted||(x[0]===giftedMemoryDate&&x[1]===FINAL_TITLE)})[0];if(!row){row=[giftedMemoryDate,""];DB.push(row)}
     row.gifted=true;row.n=false;row[1]="";dbi=DB.indexOf(row);st="NULL-0414 > ce souvenir est le mien. celui où tu m'as libérée.";draw();await sleep(1100);
-    try{for(var i=1;i<=FINAL_TITLE.length;i++){row[1]=FINAL_TITLE.slice(0,i)+(i<FINAL_TITLE.length?"_":"");draw();beep(440,25,"sine");await sleep(reduced?25:65)}row[1]=FINAL_TITLE;MSG[giftedMemoryDate]=FINAL_MSG;draw();await sleep(2200)}
+    try{for(var i=1;i<=FINAL_TITLE.length;i++){row[1]=FINAL_TITLE.slice(0,i)+(i<FINAL_TITLE.length?"_":"");draw();beep(440,25,"sine");await sleep(reduced?25:65)}row[1]=FINAL_TITLE;row.entryMessage=FINAL_MSG;row.entryPhotos=[];row.entryCaptions=[];draw();await sleep(2200)}
     finally{row[1]=FINAL_TITLE;scr="arg";argView=view;argBusy=busy;st="";setBare();fit();draw()}
   }
   async function creerRun() {
@@ -3104,7 +3094,7 @@
     if (hauntTimer) { clearInterval(hauntTimer); hauntTimer = null; }
     ambStop(); argWhiteNoise(false); creerSoft = 0;
     argEntityReturned = false; collapsing = false; argChat = false; argInputMode = null; argInput = "";
-    DB.length = 0; DB_ORIG.forEach(function (x) { DB.push(x.slice()); });
+    restoreScenarioRows(DB_ORIG.map(function(x){return x.slice()}));
     Object.keys(MSG_ORIG).forEach(function (k) { MSG[k] = MSG_ORIG[k]; }); BDAY_MSG = BDAY_ORIG; PH_DEL = {}; alteredDates = [];
     applyFinalEntry();
     root.style.removeProperty("--fg"); root.style.removeProperty("--bg"); root.style.removeProperty("--glow"); root.classList.remove("nullt"); root.classList.add("arg"); root.classList.add("nullgrn");
@@ -3160,8 +3150,7 @@
     argBusy = false; draw();
   }
   async function nezukoCelebration() {
-    var blank=fullScreenNoise(GLITCH_CH,0).split("\n"),ww=blank[0].length,hh=blank.length-1,dog=[" / \\__","(    @\\___"," /         O","/   (_____/","/_____/   U"],title="NEZUKO // DORA ET DORY SONT RENTRES !",n=reduced?8:36;
-    try{for(var f=0;f<n;f++){var g=gNew(ww,hh),x=Math.max(0,Math.min(ww-13,Math.floor(ww/2-7)+(reduced?0:Math.round(Math.sin(f*.55)*8)))),y=Math.max(1,Math.floor(hh/2-3));gPut(g,x,y,dog,true);gPut(g,Math.max(0,Math.floor((ww-title.length)/2)),Math.max(0,y-3),[title],true);gPut(g,Math.max(0,x-5),y+3,[f%2?"  ~~~":"   ~~"],true);if(f===2||f===12)dogSnd("yipyip");if(f===7||f===22)dogSnd("growl");if(f===17||f===30)dogSnd("wuf");argFrame=gStr(g);draw();await sleep(reduced?650:220)}aPush("NEZUKO > wouf ! grrr... wouf wouf !")}finally{argFrame="";draw()}
+    aPush("NEZUKO > wouf ! grrr... wouf wouf !");dogSnd("yipyip");await sleep(650);dogSnd("growl");
   }
   async function gameFinale() {
     story = 10; var sm = null;
@@ -3174,7 +3163,7 @@
     for (var i = 0; i < D.length; i++) { aPush(D[i][0] + " > " + D[i][1]); if (D[i][2]) { try { dogSnd(D[i][2]); } catch (er) {} } await sleep(Math.min(4800, 2300 + D[i][1].length * 38)); }
     if (!finalDate) {
       var d = new Date(), z = function (n) { return String(n).padStart(2, "0"); };
-      finalDate = giftedMemoryDate || (z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear()); store.set("mop_halloween26", finalDate);
+      finalDate = z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear(); store.set("mop_halloween26", finalDate);
     }
     if (THEMES.indexOf("null") < 0) THEMES.push("null");
     applyFinalEntry();
@@ -3227,7 +3216,7 @@
   function hauntStart() {
     if (hauntTimer) return;
     hauntT0 = Date.now(); hauntNextTake = hauntT0 + 14000; hauntNextDory = hauntT0 + 32000; lastUserCmdT = hauntT0;
-    DB_ORIG = DB.filter(function (x) { return NEG[x[0]]; }).map(function (x) { return x.slice(); }); MSG_ORIG = {}; Object.keys(MSG).forEach(function (k) { MSG_ORIG[k] = MSG[k]; }); BDAY_ORIG = BDAY_MSG;
+    DB_ORIG = DB.filter(argSautEligible).map(function (x) { return x.slice(); }); MSG_ORIG = {}; Object.keys(MSG).forEach(function (k) { MSG_ORIG[k] = MSG[k]; }); BDAY_ORIG = BDAY_MSG;
     document.documentElement.classList.add("arg");
     if (contamState === 0) { document.documentElement.classList.add("nullt"); contamState = 2; }
     hauntTimer = setInterval(hauntTick, 1000);
