@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src https://api.github.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer"><title>D.O.R.Y — Gestion des SAUTS</title><link rel="stylesheet" href="css/gestion-sauts.css">
+<script src="js/sauts-common.js" defer></script><script src="js/github-sauts.js" defer></script><script src="js/gestion-sauts.js" defer></script></head>
+<body><main><h1>╔═ D.O.R.Y / GESTION DES SAUTS ═╗</h1>
+<p>Création de nouvelles entrées uniquement. Aucune modification des souvenirs existants ni des étapes de l’ARG.</p>
+<p><a href="index.html">← Retour au terminal</a></p>
+<section><h2>1. Connexion au dépôt</h2><p>Dépôt : MakoKusa/DoryProject</p>
+<label>Jeton GitHub limité au dépôt<input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Ne jamais partager ce jeton"></label>
+<p>Jeton conservé en mémoire uniquement. Autorisation requise : Contents — Read and write.</p>
+<button id="branches" type="button">Charger les branches</button><button id="disconnect" type="button">Déconnecter et effacer le jeton</button>
+<label>Branche<select id="branch"><option value="">Charger les branches d’abord</option></select></label>
+<label>Dossier source GitHub Pages<select id="folder"><option value="">Racine /</option><option value="docs">/docs</option></select></label>
+<label class="check"><input id="source-confirm" type="checkbox">J’ai vérifié dans Settings → Pages que cette branche et ce dossier sont la source publiée. Si la publication utilise Actions, j’ai vérifié les chemins du workflow.</label>
+<button id="inspect" type="button">Vérifier la source et charger les entrées</button></section>
+<section><h2>2. Nouveau SAUT</h2><form id="entry-form">
+<label>Date<input id="date" type="date" required min="1900-01-01" max="9999-12-31"></label>
+<label>Heure facultative<input id="time" type="time" step="1"></label>
+<label>Titre<input id="title" maxlength="120" required></label>
+<label>Message<textarea id="message" rows="6" maxlength="10000" required></textarea></label>
+<label>Photos : zéro à trois images, 10 Mo maximum chacune<input id="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple></label>
+<p>Les images seront redimensionnées à 2048 pixels maximum et converties en JPEG. Les fichiers originaux ne sont pas envoyés.</p>
+<div id="photo-preview"></div>
+<button id="preview" type="button">Prévisualiser</button><button id="publish" type="submit" disabled>Publier dans GitHub</button>
+</form><pre id="entry-preview"></pre></section>
+<section><h2>État</h2><p id="status" role="status" aria-live="polite">Aucune connexion. Aucune écriture effectuée.</p><div id="result"></div><h3>Entrées ajoutées</h3><ul id="entries"></ul></section>
+<p>Cette page n’est pas une zone secrète. Seul un jeton autorisé permet d’écrire. Les souvenirs et les photos publiés restent publics.</p>
+</main></body></html>
