@@ -1,0 +1,15 @@
+/* Responsive presentation: preserve the ASCII grid and long-page scrolling. */
+#crt { min-height: 100vh; min-height: 100dvh; }
+#main { width: fit-content; max-width: 100%; margin-inline: auto; margin-block: auto; }
+#crt > h1, #crt > footer { text-align: center; }
+#main .layout { justify-content: center; }
+#crt > footer { margin-top: 0; }
+
+/* The screensaver alone uses a fixed viewport-sized canvas. */
+html.viewport-sleep, html.viewport-sleep body { overflow: hidden; }
+html.viewport-sleep #crt { height: 100vh; height: 100dvh; overflow: hidden; }
+html.viewport-sleep #main { width: 100%; margin: 0; }
+html.viewport-sleep .viewport-sleep-frame {
+  position: fixed; left: 0; top: 0; width: max-content;
+  margin: 0; transform-origin: top left; will-change: transform;
+}
