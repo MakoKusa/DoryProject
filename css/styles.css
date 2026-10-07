@@ -124,3 +124,18 @@
   .archive-clean .ent { color: #eeeeee !important; text-shadow: 0 0 3px rgba(238,238,238,.25) !important; }
   .archive-error { --fg: #ff3434; --bg: #130405; --glow: rgba(255,35,35,.55); }
   .archive-error pre, .archive-error span { color: #ff3434 !important; text-shadow: 0 0 5px rgba(255,35,35,.55) !important; }
+
+  /* Hide transient scrollbars only while the terminal is shaking/glitching.
+     Scrolling remains enabled; normal scrollbars return after the effect. */
+  html:has(#crt:is(.shake, .glitchfx, .crtoff)),
+  body:has(#crt:is(.shake, .glitchfx, .crtoff)),
+  #crt:is(.shake, .glitchfx, .crtoff) {
+    scrollbar-width: none;
+  }
+  html:has(#crt:is(.shake, .glitchfx, .crtoff))::-webkit-scrollbar,
+  body:has(#crt:is(.shake, .glitchfx, .crtoff))::-webkit-scrollbar,
+  #crt:is(.shake, .glitchfx, .crtoff)::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
