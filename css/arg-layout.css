@@ -1,0 +1,18 @@
+/* ARG: fixed terminal, anchored archives, fullscreen parasites. */
+#main.arg-terminal-stage{width:min(100%,calc(var(--arg-columns,80)*1ch));max-width:none}
+#main.arg-terminal-stage>pre{width:max-content;min-width:100%;max-width:100%;margin:0 auto}
+.arg-full-glitch{position:fixed;inset:0;z-index:950;width:100vw;height:100vh;height:100dvh;overflow:hidden;pointer-events:none;background:var(--bg);filter:none!important;opacity:1!important}
+.arg-full-glitch pre{width:max-content;margin:0;white-space:pre}
+html.arg-archives-open #main{width:min(100%,calc(var(--arg-columns,80)*1ch));max-width:none;height:calc(100vh - 190px);height:calc(100dvh - 190px);min-height:240px;overflow:auto;margin-top:16px;margin-bottom:auto}
+#main .arg-archive-layout{display:grid!important;grid-template-columns:42ch minmax(0,1fr);align-items:start;justify-content:stretch;gap:2ch;width:100%;margin:0 auto;white-space:normal}
+#main .arg-archive-layout>pre{width:max-content;margin:0;align-self:start}
+#main .arg-archive-layout .archive-reader{min-width:0;margin:0;align-self:start;max-height:calc(100vh - 220px);max-height:calc(100dvh - 220px);overflow:auto}
+#main .arg-archive-layout .archive-reader pre{width:max-content;margin:0;white-space:pre}
+#main .arg-archive-layout.is-stacked{grid-template-columns:minmax(0,1fr)}
+#crt.inv{filter:none!important}
+@media(max-width:849px){#main .arg-archive-layout{grid-template-columns:minmax(0,1fr);gap:16px}#main .arg-archive-layout .archive-reader{max-height:65vh}}
+/* Transparent interference, never a solid grey/white flash or layout change. */
+html.arg-screen-buzz::after{content:"";position:fixed;inset:0;z-index:980;pointer-events:none;opacity:.32;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(30,80,105,.25) 3px 4px,transparent 4px 7px);animation:arg-radio-scan .08s steps(2,end) infinite}
+html.arg-screen-buzz #crt pre,html.arg-screen-buzz #tbar{ text-shadow:1px 0 rgba(255,45,115,.6),-1px 0 rgba(70,190,255,.6)}
+@keyframes arg-radio-scan{from{background-position:0 0}to{background-position:0 11px}}
+@media(prefers-reduced-motion:reduce){html.arg-screen-buzz::after{display:none}html.arg-screen-buzz #crt pre,html.arg-screen-buzz #tbar{text-shadow:none}}

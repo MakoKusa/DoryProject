@@ -55,7 +55,9 @@
       if (w < 40) { w = 40; fs = Math.max(8.5, avail / (cw * 42)); }
       if (w > 78) w = 78;
     }
+    if (scr === "arg") w = Math.max(w, Math.min(112, Math.floor(avail / (cw * fs)) - 2));
     W = w; document.body.style.fontSize = fs.toFixed(1) + "px";
+    crt.style.setProperty("--arg-columns", W + 2);
   }
 
   // ---------- Particules thematiques (independantes des effets reduits) ----------
@@ -140,7 +142,7 @@
   var DEF = "14/04/2025 - 20:00:00", target = DEF;
   var scr = "off", run = 0, cur = 0, st = "", crashReady = false, prun = false, arrival = false, jumpFrom = "db";
   var argLog = [], argIn = "", argBusy = false, argFrame = "", argPrevTrack = null, argStat = 0, argTick = 0;
-  var argEntityReturned = false, argWhite = null, nullPromenadeUsed = false;
+  var argEntityReturned = false, argWhite = null, nullPromenadeUsed = false, nullSautsUsed = false;
   var argView = null, argArch = null, argArchSel = 0, argLogSel = 0, argInputMode = null, argInput = "", argChat = false;
   var LOGIN_PWD = "SUSHI", lgb = "";
 
@@ -540,7 +542,7 @@
   function applyCustomSauts() {
     var hidden = argEntityReturned || collapsing || creerOn || theme === "null";
     var selected = DB[dbi];
-    for (var i = DB.length - 1; i >= 0; i--) if (DB[i].custom && (hidden || DB[i][0] === finalDate || DB[i][0] === giftedMemoryDate)) DB.splice(i, 1);
+    for (var i = DB.length - 1; i >= 0; i--) if (DB[i].custom && !hidden && (DB[i][0] === finalDate || DB[i][0] === giftedMemoryDate)) DB.splice(i, 1);
     if (hidden) return;
     var added = false;
     customSauts.forEach(function (e) {
@@ -844,6 +846,13 @@
     return box("STATISTIQUES", L, W);
   }
   function draw() {
+    if (window.DoryArgEffects) window.DoryArgEffects.sync({
+      active: !creerOn && !collapsing && (scr === "arg" || argEntityReturned),
+      reduced: reduced, muted: muted, volume: sfxVol, audio: getAC,
+      err: scr === "arg" && argView === "logs" && argArch !== null && !!(ARG_ARCHIVES[argArch] && ARG_ARCHIVES[argArch].logs[argLogSel] && ARG_ARCHIVES[argArch].logs[argLogSel].n === "LOG #ERR")
+    });
+    $("main").classList.toggle("arg-terminal-stage", scr === "arg" && !argView && !argFrame);
+    document.documentElement.classList.toggle("arg-archives-open", scr === "arg" && argView === "logs" && argArch !== null && !argFrame);
     if (typeof customSauts !== "undefined") applyCustomSauts();
     var readingArchive = scr === "arg" && argView === "logs" && argArch !== null && !argFrame;
     document.documentElement.classList.toggle("archive-reading", readingArchive);
@@ -863,7 +872,7 @@
     else if (scr === "pw") h = P(pwBox());
     else if (scr === "endscr") h = P(endBox());
     else if (scr === "arrival") h = arrival.html;
-    else if (scr === "arg") h = (argFrame ? P(esc(argFrame)) : P(argView ? argPanelBox() : argBox())).replace(/NULL-0414/g, '<span class="ent">NULL-0414</span>').replace(/DORY-0414/g, '<span class="dory">DORY-0414</span>').replace(/DORA-0414/g, '<span class="dora">DORA-0414</span>');
+    else if (scr === "arg") h = (argFrame ? '<div class="arg-full-glitch">' + P(esc(argFrame)) + '</div>' : argView ? argPanelBox() : P(argBox())).replace(/NULL-0414/g, '<span class="ent">NULL-0414</span>').replace(/DORY-0414/g, '<span class="dory">DORY-0414</span>').replace(/DORA-0414/g, '<span class="dora">DORA-0414</span>');
     else if (scr === "off") h = P(TITLE + '\n\n  [ REWIND MACHINE EN VEILLE ]\n\n  APPUYEZ SUR UNE TOUCHE (OU TOUCHEZ L\'ECRAN) POUR ALLUMER<span class="cursor">_</span>');
     if (scr !== "arg") h = h.replace(/NULL-0414/g, '<span class="ent">NULL-0414</span>').replace(/DORY-0414/g, '<span class="dory">DORY-0414</span>').replace(/DORA-0414/g, '<span class="dora">DORA-0414</span>');
     if (scr === "arg" || scr === "endscr") h = cmdColor(h);
@@ -878,7 +887,7 @@
     if (scr === "endscr" && s !== "endscr") { var rt = document.documentElement; rt.classList.remove("arg"); rt.classList.remove("nullt"); rt.classList.remove("nullgrn"); }
     if (s === "endscr") document.documentElement.classList.add("arg");
     if (scr === "arg" && s !== "arg") argLeave();
-    scr = s; run++; st = ""; prun = false; sq = false; arrival = false; setBare();
+    scr = s; run++; st = ""; prun = false; sq = false; arrival = false; setBare(); fit();
     if (s === "login") lgb = "";
     if (s === "opt") oi = 0;
     if (s === "arg") { argView = null; argInputMode = null; argInput = ""; argChat = false; }
@@ -959,13 +968,50 @@
     if (mid === "DORA-0414") { addRecallLog(); return ["CANAL ETABLI : DORA-0414", "DORA-0414 > Rappelle DORY-0414 et moi, s'il te plaît.", "DORA-0414 > Fais RAPPEL DORY-0414. Puis RAPPEL DORA-0414."]; }
     return ["CANAL ETABLI : DORY-0414", "DORY-0414 > Merci de m'avoir libérée de l'emprise de NULL-0414.", "DORY-0414 > Rappelle-nous, Dora et moi, pour qu'on rentre à la maison."];
   }
+  function argPanelRows() {
+    var cs = getComputedStyle(document.body), fs = parseFloat(cs.fontSize) || 16;
+    var line = parseFloat(cs.lineHeight) || fs * 1.25;
+    if (touchUI) line = fs * 1.5;
+    var bar = $("tbar"), inset = bar && bar.getBoundingClientRect().height > 0 ? bar.getBoundingClientRect().height : 0;
+    return Math.max(10, Math.min(42, Math.floor(Math.max(180, window.innerHeight - 180 - inset) / line) - 2));
+  }
+  function fullScreenNoise(chars, density) {
+    var cs = getComputedStyle(document.body), fs = parseFloat(cs.fontSize) || 16;
+    var ctx = document.createElement("canvas").getContext("2d");
+    ctx.font = fs + "px " + (cs.fontFamily || '"Courier New", monospace');
+    var cw = ctx.measureText("M").width || fs * .6;
+    var lh = (touchUI ? fs * 1.5 : parseFloat(cs.lineHeight)) || fs * 1.25;
+    var columns = Math.max(30, Math.ceil(window.innerWidth / cw) + 1);
+    var rows = Math.max(8, Math.ceil(window.innerHeight / lh) + 1), text = "";
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < columns; c++) text += Math.random() < density ? chars.charAt(Math.random() * chars.length | 0) : " ";
+      text += "\n";
+    }
+    return text;
+  }
+  function fixedArgRows(lines, prompt) {
+    function expand(rows) {
+      var out = [];
+      rows.forEach(function (row) { if (row.h) out.push(row); else splitLine(row.t, W).forEach(function (t) { out.push({t:t}); }); });
+      return out;
+    }
+    var target = argPanelRows(), prompts = expand([prompt]).slice(-3);
+    var headers = expand(lines.slice(0,4)), history = expand(lines.slice(4));
+    var capacity = Math.max(headers.length, target - prompts.length - 1), keep = Math.max(0, capacity - headers.length);
+    var out = headers.concat(keep ? history.slice(-keep) : []);
+    while (out.length < capacity) out.push({t:""});
+    return out.concat([{t:""}],prompts);
+  }
+  function archiveColumns() {
+    return window.innerWidth < 850 || W < 88 ? {list:Math.min(40,W),reader:W,stacked:true} : {list:40,reader:W-44,stacked:false};
+  }
   function argBox() {
-    var p = argP(), n = W < 60 ? 9 : 13;
+    var p = argP(), n = Math.max(3, Math.min(32, argPanelRows() - 6));
     var L = [{ t: "" }, { t: corrupt("CLASSIFICATION : NIVEAU 5 // ACCES RESTREINT", p) }, { t: corrupt(argDory ? "SIGNAL : DORY-0414 (FAIBLE)" : ARG_STATUS[argStat], p) }, { t: "" }];
     colorLines(argLog.slice(-n), W - 6).forEach(function (o) { L.push(o); });
     var prompt = argChat ? "MSG> " + argIn + (Date.now() % 1000 < 500 ? "_" : " ") : argInputMode ? argInputMode.label + " " + argInput + (Date.now() % 1000 < 500 ? "_" : " ") : "> " + argIn + (Date.now() % 1000 < 500 ? "_" : " ");
-    L.push({ t: "" }, (argEntityReturned && hauntTaking && !argBusy && prompt.length < W - 4) ? RL(prompt) : { t: argBusy ? "..." : prompt });
-    return box(corrupt("D.O.R.Y // TOP SECRET", p * 0.5), L, W);
+    var promptRow = (argEntityReturned && hauntTaking && !argBusy && prompt.length < W - 4) ? RL(prompt) : { t: argBusy ? "..." : prompt };
+    return box(corrupt("D.O.R.Y // TOP SECRET", p * 0.5), fixedArgRows(L, promptRow), W);
   }
   async function argType(lines, tk, delay) {
     argBusy = true;
@@ -979,16 +1025,16 @@
     return true;
   }
   async function argEnter(taken) {
-    if (!taken && !argEntityReturned && story === 0) nullPromenadeUsed = false;
+    if (!taken && !argEntityReturned && story === 0) { nullPromenadeUsed = false; nullSautsUsed = false; }
     var tk = ++run;
     scr = "arg"; argLog = []; argIn = ""; argBusy = true; argFrame = ""; argStat = 0;
-    document.documentElement.classList.add("arg"); setBare();
+    document.documentElement.classList.add("arg"); setBare(); fit();
     argPrevTrack = mus.track; mus.track = 3; if (mus.ready) startTrack();   // piste cachee ; la piste choisie est restauree a la sortie
     var frames = reduced ? 4 : (taken ? 8 : 16);
     for (var i = 0; i < frames; i++) {   // 1. parasites
       if (tk !== run || scr !== "arg") return;
       var dens = reduced ? 0.08 : 0.45 - i * 0.025, g = "";
-      for (var r = 0; r < 18; r++) { for (var c = 0; c < W + 2; c++) g += Math.random() < dens ? GLITCH_CH.charAt(Math.random() * GLITCH_CH.length | 0) : " "; g += "\n"; }
+      g = fullScreenNoise(GLITCH_CH, dens);
       argFrame = g; draw(); beep(60 + Math.random() * 200, 50, "sawtooth"); await sleep(reduced ? 280 : 90);
     }
     argFrame = "";
@@ -1151,7 +1197,7 @@
   ];
   var argViewT0 = 0, argConfSel = 1;
   function archiveReader(log, index, total) {
-    var error = log.n === "LOG #ERR", width = Math.min(62, W), rows = [{ t: "" }];
+    var error = log.n === "LOG #ERR", width = archiveColumns().reader, rows = [{ t: "" }];
     var glitch = error && !reduced && (Math.floor(Date.now() / 150) % 13 < 3);
     log.x.forEach(function (line) {
       wrap(line, width - 3).forEach(function (text) { rows.push({ t: glitch ? corrupt(text, 0.09) : text }); });
@@ -1206,7 +1252,7 @@
       var ls = [{ t: "" }, { t: A.name }, { t: "" }];
       LG.forEach(function (l, i) { ls.push({ t: (i === argLogSel ? "> " : "  ") + l.n + " " + l.t, sel: i === argLogSel }); });
       ls.push({ t: "" }, { t: "HAUT/BAS : CHOISIR   ECHAP : ARCHIVES" });
-      return '<div class="layout">' + P(box("LISTE DES LOGS", ls, Math.min(44, W))) + archiveReader(LG[argLogSel], argLogSel, LG.length) + "</div>";
+      return '<div class="layout arg-archive-layout' + (archiveColumns().stacked ? ' is-stacked' : '') + '">' + P(box("LISTE DES LOGS", ls, archiveColumns().list)) + archiveReader(LG[argLogSel], argLogSel, LG.length) + "</div>";
     }
     if (argView === "passengers") {
       var left = [{ t: "" }, { t: "MANIFESTE RM-14-04-2025" }, { t: "DESTINATION : 14/04/2025 - 20:00:00" }, { t: "" }, { t: "ALLER : 2 PASSAGERS DECLARES" }, { t: "RETOUR : 0 PASSAGER CONFIRME" }, { t: "" }, { t: "DORA-0414" }, { t: "DORY-0414" }, { t: "" }, { t: "PRESENCE NON DECLAREE :" }, { t: entityId() }, { t: "" }, { t: "ECHAP : TERMINAL" }];
@@ -1302,7 +1348,9 @@
     else if (argEntityReturned && (c === "DOSSIER 003" || c === "DOSSIER003")) { argView = "file3"; argViewT0 = Date.now(); thump(); draw(); return; }
     else if (argEntityReturned && c === "PROMENADE" && hauntSelfCmd && !nullPromenadeUsed) { nullPromenadeUsed = true; argType(["Viens avec moi."], tk, 520).then(function (ok) { if (ok && scr === "arg") { thump(); go("care"); } }); return; }
     else if (argEntityReturned && (c === "SAUTS" || c === "SAUT")) {
-      var selfS = hauntSelfCmd; if (!selfS) userRanSauts = true;
+      var selfS = hauntSelfCmd;
+      if (selfS) { if (nullSautsUsed) { draw(); return; } nullSautsUsed = true; }
+      else userRanSauts = true;
       argType(["Les dates sont à moi.", "Je les range."], tk, 520).then(function (ok) { if (ok && scr === "arg") { thump(); go("db"); if (!selfS && sautsEdits === 0) hauntSautsVisit(); } }); return;
     }
     else if (!argEntityReturned && story >= 8 && (c === "SAUTS" || c === "SAUT")) { argType(["Les dates sont revenues."], tk, 520).then(function (ok) { if (ok && scr === "arg") go("db"); }); return; }
@@ -1354,8 +1402,8 @@
     var ch = "▓▒░█#@%&$?!/\\01", frames = reduced ? 6 : 40, delay = reduced ? 260 : 60, dens = reduced ? 0.12 : 0.35;
     for (var i = 0; i < frames; i++) {
       var g = "";
-      for (var r = 0; r < 24; r++) { for (var c = 0; c < W + 2; c++) g += Math.random() < dens ? ch[Math.random() * ch.length | 0] : " "; g += "\n"; }
-      $("main").innerHTML = P(esc(g)); fxToggle("inv", i % 10 === 5);
+      g = fullScreenNoise(ch, dens);
+      $("main").innerHTML = '<div class="arg-full-glitch">' + P(esc(g)) + '</div>'; fxToggle("inv", i % 10 === 5);
       beep(80 + Math.random() * 900, 50, "sawtooth"); await sleep(delay);
     }
     crt.classList.remove("shake"); fxAdd("inv");
@@ -2036,7 +2084,7 @@
   var HAUNT_OK = GHOST_OK.concat(["arg"]);
   function thump() { beep(50, 300, "sine"); }
   function heartbeat() { thump(); setTimeout(function () { beep(50, 380, "sine"); }, 320); }
-  function flashInv(ms) { if (reduced || scr !== "arg") return; fxAdd("inv"); setTimeout(function () { crt.classList.remove("inv"); }, ms || 150); }
+  function flashInv(ms) { crt.classList.remove("inv"); }
   function glitchNow() { if (reduced) return; crt.classList.add("glitchfx"); setTimeout(function () { crt.classList.remove("glitchfx"); }, 330); }
   var GHOST_FX = [
     function () { var t = document.title; document.title = "NULL-0414"; setTimeout(function () { document.title = t; }, 3500); },
@@ -2648,30 +2696,29 @@
     if (scr === "db") { DB[idx][1] = text; draw(); }
   }
   function isNull(x) { return x[1].indexOf(NULL_TAG) >= 0; }
+  async function appropriateSaut(row, text) {
+    var idx = DB.indexOf(row); if (idx < 0 || scr !== "db") return;
+    row.n = true; dbi = idx;
+    for (var k = 1; k <= text.length && scr === "db"; k++) {
+      row[1] = text.slice(0,k) + (k < text.length ? "_" : "");
+      draw(); beep(300 + Math.random()*400,25,"square"); await sleep(50);
+    }
+    row[1] = text; alterMemory(row[0]); draw();
+  }
   async function sautsEditLoop(n) {
     while (n-- > 0 && scr === "db") {
-      var cand = [], r = Math.random();
-      DB.forEach(function (x, i) { if (!isNull(x) && NEG[x[0]] && x[1].indexOf("█") < 0 && x[1].indexOf("_") < 0) cand.push(i); });
-      if (!cand.length) break;
-      var i = hRand(cand), date = DB[i][0], title = DB[i][1], hasNeg = DB.some(function (x) { return x[0] === date && isNull(x); });
-      var kind = r < 0.3 && DB.length > 4 ? "delete" : (r < 0.7 || hasNeg || DB.length >= 16) ? "replace" : "create";
-      if (kind === "create" && hasNeg) kind = "replace";
-      dbi = i; draw(); await sleep(900); if (scr !== "db") return;
-      if (kind === "delete") {
-        st = entityId() + " > j'efface « " + title + " »"; draw();
-        await rowErase(i); if (scr !== "db") return; DB.splice(i, 1); dbi = Math.max(0, Math.min(dbi, DB.length - 1));
-      } else if (kind === "replace") {
-        st = entityId() + " > " + hRand(["voilà ce qui s'est vraiment passé", "je le remets comme il aurait dû être", "ce jour-là, il n'y avait personne"]); draw();
-        await rowErase(i); if (scr !== "db") return; DB.splice(i, 1); await rowType(i, date, NEG[date] + NULL_TAG);
-      } else {
-        st = entityId() + " > " + hRand(["j'ajoute ce que j'ai vécu, moi", "ça, c'est mon souvenir", "tu as eu ça. j'ai eu ça"]); draw();
-        await rowType(i + 1, date, NEG[date] + NULL_TAG);
-      }
-      alterMemory(date); sautsEdits++; thump(); draw(); await sleep(1400 + Math.random() * 900);
+      var candidates = DB.filter(function(row) { return !isNull(row) && NEG[row[0]]; });
+      if (!candidates.length) break;
+      var row = hRand(candidates);
+      dbi = DB.indexOf(row); st = entityId() + " > " + hRand(["ce souvenir est à moi.", "je me souviens. moi.", "ce jour-là, c'était moi."]);
+      draw(); await sleep(900); if (scr !== "db") return;
+      await appropriateSaut(row, NEG[row[0]] + NULL_TAG);
+      sautsEdits++; thump(); draw(); await sleep(1400 + Math.random()*900);
     }
-    st = hRand([entityId() + " > ce n'est pas assez.", entityId() + " > il m'en faut d'autres.", entityId() + " > à toi, maintenant."]); draw();
+    st = entityId() + " > je me les approprie."; draw();
   }
   async function hSauts() {
+    if (nullSautsUsed) return;
     if (!(await hRun("SAUTS"))) return;
     var w = 0; while (scr !== "db" && w++ < 40) await sleep(200);
     if (scr !== "db") return;
@@ -2687,16 +2734,12 @@
     finally { hauntTaking = false; hauntLock = 0; hauntNextTake = Date.now() + 8000; hauntNextDory = Math.min(hauntNextDory, Date.now() + 25000); draw(); }
   }
   async function nullTakeAllSauts() {
-    var olds = DB.map(function (x) { return [x[0], x[1]]; }); DB.forEach(function (x) { x.n = true; });
-    for (var k = 1; k <= 9 && scr === "db"; k++) {
-      DB.forEach(function (x, i) { x[1] = dissolve(olds[i][1], k / 9); x[0] = dissolve(olds[i][0], k / 9 * 0.7); }); draw(); beep(300 - k * 20, 40, "sawtooth"); await sleep(90);
+    var rows = DB.slice();
+    for (var i = 0; i < rows.length && scr === "db"; i++) {
+      if (!NEG[rows[i][0]]) continue;
+      await appropriateSaut(rows[i], NEG[rows[i][0]] + NULL_TAG);
     }
-    var texts = DB_ORIG.map(function (o) { return NEG[o[0]] + NULL_TAG; });
-    DB.length = 0;
-    DB_ORIG.forEach(function (o) { var e = [o[0], ""]; if (o[2]) e.push(o[2]); e.n = true; DB.push(e); });
-    var maxLen = Math.max.apply(null, texts.map(function (t) { return t.length; }));
-    for (var n = 3; n <= maxLen + 3 && scr === "db"; n += 3) { DB.forEach(function (e, i) { e[1] = texts[i].slice(0, n); }); draw(); beep(300 + Math.random() * 400, 20, "square"); await sleep(35); }
-    DB.forEach(function (e, i) { e[1] = texts[i]; }); DB_ORIG.forEach(function (o) { alterMemory(o[0]); }); dbi = 0; draw();
+    dbi = Math.max(0, Math.min(dbi,DB.length-1)); draw();
   }
   async function hauntRestoreAttempt() {
     var w = 0; while (scr !== "db" && w++ < 40) await sleep(150);
@@ -2709,8 +2752,9 @@
         var idx = -1; for (var i = DB.length - 1; i >= 0; i--) if (DB[i].n) { idx = i; break; }
         if (idx < 0) break;
         var date = DB[idx][0], hasOther = DB.some(function (x, j) { return j !== idx && x[0] === date && !x.n; });
-        dbi = idx; draw(); await sleep(500); await rowErase(idx); DB.splice(idx, 1); dbi = Math.max(0, Math.min(dbi, DB.length - 1));
-        if (!hasOther) { var o = DB_ORIG.filter(function (x) { return x[0] === date; })[0]; if (o) { await rowType(idx, date, o[1], false); if (o[2]) DB[idx][2] = o[2]; } }
+        dbi = idx; draw(); await sleep(500);
+        var o = DB_ORIG.filter(function (x) { return x[0] === date; })[0];
+        if (o) { DB[idx][1] = o[1]; if (o[2]) DB[idx][2] = o[2]; DB[idx].n = false; }
         unalterMemory(date); done++; draw(); await sleep(500);
       }
       st = "RESTAURATION EN COURS... ERREUR"; glitchBurstUntil = Date.now() + 2400;
@@ -2762,7 +2806,7 @@
       await sleep(600 + Math.random() * 600);
       var st2 = hauntStage(), pool = [[3, hSpeakErase], [3, hSpeakSend], [2, hMistype], [1, hFlood]];
       if (!nullPromenadeUsed) pool.push([2, hNezuko]);
-      if (story >= 2 && !restoreFailed) pool.push([3, hSauts]);
+      if (story >= 2 && !restoreFailed && !nullSautsUsed) pool.push([3, hSauts]);
       if (st2 >= 3) pool.push([1, hDouble]);
       var tot = 0; pool.forEach(function (x) { tot += x[0]; }); var r = Math.random() * tot, f = pool[0][1];
       for (var i = 0; i < pool.length; i++) { r -= pool[i][0]; if (r <= 0) { f = pool[i][1]; break; } }
@@ -2792,7 +2836,7 @@
   function aPush(s) { wrap(s, W - 6).forEach(function (x) { argLog.push(x); }); argSound(); draw(); }
   async function glitchFrames(n, silent) {
     for (var i = 0; i < n && scr === "arg"; i++) {
-      var g = ""; for (var r = 0; r < 18; r++) { for (var c = 0; c < W + 2; c++) g += Math.random() < 0.3 ? GLITCH_CH.charAt(Math.random() * GLITCH_CH.length | 0) : " "; g += "\n"; }
+      var g = fullScreenNoise(GLITCH_CH, 0.3);
       argFrame = g; draw(); if (!silent) beep(60 + Math.random() * 200, 40, "sawtooth"); await sleep(reduced ? 200 : 80);
     }
     argFrame = ""; draw();
@@ -3181,7 +3225,7 @@
     if (correctionDone && !paused && scr === "arg" && !hauntTaking && !argDory && !argBusy && !argView && !argChat && argIn === "" && R() < 0.012 + 0.012 * l) { wrap(entityId() + " > " + hRand(NULL_DEFIANCE), W - 6).forEach(function (x) { argLog.push(x); }); thump(); draw(); }
     if (now - hauntLastBreath > 20000) {
       if (R() < 0.012 + 0.035 * l) hauntBreath();
-      else if (R() < 0.003 + 0.010 * l) hauntKnock();
+      else if (R() < (scr === "arg" ? 0.006 + 0.016 * l : 0.003 + 0.010 * l)) hauntKnock();
     }
     if (R() < 0.01 + 0.03 * l) hauntEffect();
   }
