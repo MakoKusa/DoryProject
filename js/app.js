@@ -96,8 +96,8 @@
     } catch (e) {}
   }
   // Effets visuels (ignores en mode "effets reduits")
-  function fxAdd(c) { if (!reduced) crt.classList.add(c); }
-  function fxToggle(c, on) { if (!reduced) crt.classList.toggle(c, on); }
+  function fxAdd(c) { if (!reduced && story < 8) crt.classList.add(c); }
+  function fxToggle(c, on) { if (story >= 8) { crt.classList.remove(c); return; } if (!reduced) crt.classList.toggle(c, on); }
 
   // ---------- Cadres ASCII ----------
   // ligne : {t: texte brut, h: html optionnel de meme longueur, sel: inverse, act: action au toucher/clic}
@@ -807,7 +807,7 @@
     var L = [{ t: "" }];
     DB.forEach(function (x, i) {
       var lt = (i === dbi ? "> " : "  ") + x[0] + " : " + x[1];
-      if (x.n || argEntityReturned) splitLine(lt, W).forEach(function (s) { L.push({ t: s, h: '<span class="' + (x.n ? "ent" : "wht") + '">' + esc(s) + "</span>", sel: i === dbi, act: "d:" + i }); });
+      if (x.gifted || x.n || argEntityReturned) splitLine(lt, W).forEach(function (s) { L.push({ t: s, h: '<span class="' + (x.gifted ? "grn" : x.n ? "ent" : "wht") + '">' + esc(s) + "</span>", sel: i === dbi, act: "d:" + i }); });
       else L.push({ t: lt, sel: i === dbi, act: "d:" + i });
     });
     L.push({ t: "" }, { t: "HAUT/BAS : PARCOURIR   ENTREE : DEFINIR COMME DATE CIBLE   ECHAP : RETOUR" }, { t: "" }, (st && st.length < W - 6 && /^(NULL-0414|DORY-0414 >|DORA-0414 >)/.test(st)) ? SP("> " + st) : { t: "> " + (st || "SELECTIONNEZ UNE DATE_") });
@@ -846,10 +846,11 @@
     return box("STATISTIQUES", L, W);
   }
   function draw() {
+    document.documentElement.classList.toggle("arg-creer-fixed", scr === "arg" && argView === "creer" && creerOn);
     if (window.DoryArgEffects) window.DoryArgEffects.sync({
-      active: !creerOn && !collapsing && (scr === "arg" || argEntityReturned),
+      active: story < 8 && !creerOn && !collapsing && (scr === "arg" || argEntityReturned),
       reduced: reduced, muted: muted, volume: sfxVol, audio: getAC,
-      err: scr === "arg" && argView === "logs" && argArch !== null && !!(ARG_ARCHIVES[argArch] && ARG_ARCHIVES[argArch].logs[argLogSel] && ARG_ARCHIVES[argArch].logs[argLogSel].n === "LOG #ERR")
+      err: story < 8 && scr === "arg" && argView === "logs" && argArch !== null && !!(ARG_ARCHIVES[argArch] && ARG_ARCHIVES[argArch].logs[argLogSel] && ARG_ARCHIVES[argArch].logs[argLogSel].n === "LOG #ERR")
     });
     $("main").classList.toggle("arg-terminal-stage", scr === "arg" && !argView && !argFrame);
     document.documentElement.classList.toggle("arg-archives-open", scr === "arg" && argView === "logs" && argArch !== null && !argFrame);
@@ -911,12 +912,12 @@
   var GLITCH_CH = "░▒▓█▌▐#@%&$?!/\\|=+*~";
   // Remplace au hasard certains caracteres (meme longueur, donc alignement des cadres conserve) ; aucun effet si "effets reduits"
   function corrupt(s, p) {
-    if (reduced || p <= 0) return s;
+    if (story >= 8 || reduced || p <= 0) return s;
     var o = "";
     for (var i = 0; i < s.length; i++) { var ch = s.charAt(i); o += (ch !== " " && Math.random() < p) ? GLITCH_CH.charAt(Math.random() * GLITCH_CH.length | 0) : ch; }
     return o;
   }
-  function argP() { return reduced ? 0 : (Math.random() < 0.03 ? 0.04 : 0); }   // de temps en temps, un pic de corruption
+  function argP() { return (story >= 8 || reduced) ? 0 : (Math.random() < 0.03 ? 0.04 : 0); }   // de temps en temps, un pic de corruption
   function argSound() { beep(70 + Math.random() * 60, 40, "sawtooth"); }
   function entityId() { return "NULL-0414"; }
   function isEntityId(s) { return /^(NULL|NULL-?0414|3|TROISIEME|ENTITE)$/i.test(String(s).replace(/[̷]/g, "").replace(/\s+/g, "")); }
@@ -1007,7 +1008,7 @@
   }
   function argBox() {
     var p = argP(), n = Math.max(3, Math.min(32, argPanelRows() - 6));
-    var L = [{ t: "" }, { t: corrupt("CLASSIFICATION : NIVEAU 5 // ACCES RESTREINT", p) }, { t: corrupt(argDory ? "SIGNAL : DORY-0414 (FAIBLE)" : ARG_STATUS[argStat], p) }, { t: "" }];
+    var L = [{ t: "" }, { t: corrupt("CLASSIFICATION : NIVEAU 5 // ACCES RESTREINT", p) }, { t: corrupt(argDory ? "SIGNAL : DORY-0414 (FAIBLE)" : (story >= 8 ? "SIGNAL : STABLE" : ARG_STATUS[argStat]), p) }, { t: "" }];
     colorLines(argLog.slice(-n), W - 6).forEach(function (o) { L.push(o); });
     var prompt = argChat ? "MSG> " + argIn + (Date.now() % 1000 < 500 ? "_" : " ") : argInputMode ? argInputMode.label + " " + argInput + (Date.now() % 1000 < 500 ? "_" : " ") : "> " + argIn + (Date.now() % 1000 < 500 ? "_" : " ");
     var promptRow = (argEntityReturned && hauntTaking && !argBusy && prompt.length < W - 4) ? RL(prompt) : { t: argBusy ? "..." : prompt };
@@ -2085,7 +2086,7 @@
   function thump() { beep(50, 300, "sine"); }
   function heartbeat() { thump(); setTimeout(function () { beep(50, 380, "sine"); }, 320); }
   function flashInv(ms) { crt.classList.remove("inv"); }
-  function glitchNow() { if (reduced) return; crt.classList.add("glitchfx"); setTimeout(function () { crt.classList.remove("glitchfx"); }, 330); }
+  function glitchNow() { if (story >= 8 || reduced) return; crt.classList.add("glitchfx"); setTimeout(function () { crt.classList.remove("glitchfx"); }, 330); }
   var GHOST_FX = [
     function () { var t = document.title; document.title = "NULL-0414"; setTimeout(function () { document.title = t; }, 3500); },
     function () { glitchNow(); beep(48, 300, "sawtooth"); },
@@ -2095,7 +2096,7 @@
   ];
   function ghostLoop() {
     setTimeout(function () {
-      if (!argEntityReturned && GHOST_OK.indexOf(scr) >= 0 && !document.hidden) { try { GHOST_FX[Math.random() * GHOST_FX.length | 0](); } catch (e) {} }
+      if (story < 8 && !argEntityReturned && GHOST_OK.indexOf(scr) >= 0 && !document.hidden) { try { GHOST_FX[Math.random() * GHOST_FX.length | 0](); } catch (e) {} }
       ghostLoop();
     }, 35000 + Math.random() * 70000);
   }
@@ -2374,10 +2375,8 @@
     if (mus.ready) applyMusic(0.5);
   }
   function applyFinalEntry() {
-    var date = finalDate || giftedMemoryDate;
-    if (!date) return;
-    MSG[date] = FINAL_MSG;
-    if (!DB.some(function (x) { return x[0] === date && x[1] === FINAL_TITLE; })) DB.push([date, FINAL_TITLE]);
+    var date=finalDate||giftedMemoryDate;if(!date)return;MSG[date]=FINAL_MSG;
+    var row=DB.filter(function(x){return x[0]===date&&(x[1]===FINAL_TITLE||x.gifted)})[0];if(!row){row=[date,FINAL_TITLE];DB.push(row)}row.gifted=true;
   }
   applyFinalEntry();
   function creditsBlock(d) {
@@ -2734,12 +2733,9 @@
     finally { hauntTaking = false; hauntLock = 0; hauntNextTake = Date.now() + 8000; hauntNextDory = Math.min(hauntNextDory, Date.now() + 25000); draw(); }
   }
   async function nullTakeAllSauts() {
-    var rows = DB.slice();
-    for (var i = 0; i < rows.length && scr === "db"; i++) {
-      if (!NEG[rows[i][0]]) continue;
-      await appropriateSaut(rows[i], NEG[rows[i][0]] + NULL_TAG);
-    }
-    dbi = Math.max(0, Math.min(dbi,DB.length-1)); draw();
+    var rows=DB.filter(function(r){return !!NEG[r[0]]}),texts=rows.map(function(r){return NEG[r[0]]+NULL_TAG});st=entityId()+" > tout est à moi.";glitchNow();thump();rows.forEach(function(r){r.n=true});
+    for(var k=0;k<=24&&scr==="db";k++){rows.forEach(function(r,i){r[1]=texts[i].slice(0,Math.ceil(texts[i].length*k/24))+(k<24?"_":"")});draw();if(k%3===0)beep(90+k*12,40,"sawtooth");await sleep(reduced?40:65)}
+    rows.forEach(function(r,i){r[1]=texts[i];alterMemory(r[0])});dbi=Math.max(0,Math.min(dbi,DB.length-1));draw();
   }
   async function hauntRestoreAttempt() {
     var w = 0; while (scr !== "db" && w++ < 40) await sleep(150);
@@ -3022,14 +3018,20 @@
     if (c.cur) L.push(maskedLine(c.cur.t + "_", c.cur.mask, "ent"));
     L.push({ t: "" });
     if (c.btn) {
-      var bs = " ".repeat(c.btn.ind) + "[ " + c.btn.text + " ]";
-      L.push({ t: bs, h: " ".repeat(c.btn.ind) + '<span class="btnr">' + esc("[ " + c.btn.text + " ]") + "</span>", act: "k:Enter" });
+      var bs = "[ " + c.btn.text + " ]";
+      bs = bs.slice(0, Lw - 2);
+      L.push({ t: bs, h: '<span class="btnr">' + esc(bs) + "</span>", act: "k:Enter" });
       L.push({ t: "ENTREE OU CLIC SUR LE BOUTON POUR REPONDRE" });
     } else L.push({ t: "..." });
     var R = [{ t: "" }, { t: "RECONFORT : [" + bar(c.prog * 100, 14) + "] " + String(Math.round(c.prog * 100)).padStart(3) + "%" }, { t: "" }];
     c.fused.forEach(function (x) { splitLine("+ " + x, Rw).forEach(function (s) { R.push({ t: s, h: '<span class="wht">' + esc(s) + "</span>" }); }); });
     R.push({ t: "" }, { t: "SOUVENIRS EN ATTENTE : " + (12 - c.fused.length) });
-    return '<div class="layout">' + P(box("VIE DE NULL-0414", L, Lw)) + P(box("SOUVENIRS FUSIONNES", R, Rw)) + "</div>";
+    function fixed(rows,w) {
+      var h=Math.max(14,Math.min(24,argPanelRows())),out=[];
+      rows.forEach(function(r){if(r.h)out.push(r);else splitLine(r.t,w).forEach(function(t){out.push({t:t,act:r.act})})});
+      var foot=out.slice(-6),body=out.slice(0,-6).slice(-(h-6));while(foot.length<6)foot.unshift({t:""});while(body.length<h-6)body.push({t:""});return body.concat(foot);
+    }
+    return '<div class="creer-fixed-layout'+(window.innerWidth>=1100&&W>=108?' two-columns':'')+'">'+P(box("VIE DE NULL-0414",fixed(L,Lw),Lw))+P(box("SOUVENIRS FUSIONNES",fixed(R,Rw),Rw))+"</div>";
   }
   function creerPress() { if (creer && creer.btn && creer.res) { var r = creer.res; creer.res = null; r(); } }
   function creerUpdateSoft() {
@@ -3038,7 +3040,7 @@
     creerSoft = Math.max(creerSoft, s); if (creerSM) creerSM.set(creerSoft);
   }
   async function creerType(s, sp, all) {
-    var parts = wrap(s, 50);
+    var parts = wrap(s, Math.min(50,W-4));
     for (var pi = 0; pi < parts.length; pi++) {
       var wl = parts[pi], mask = wordsMask(wl, creer.prog, all), gsum = 0;
       mask.forEach(function (m) { gsum += m; });
@@ -3062,25 +3064,12 @@
     creerRun();
   }
   async function newSouvenirAnimation() {
-    var now = new Date(), z = function (n) { return String(n).padStart(2, "0"); };
-    giftedMemoryDate = z(now.getDate()) + "/" + z(now.getMonth() + 1) + "/" + now.getFullYear();
-    applyFinalEntry();
-    var width = Math.max(24, Math.min(W - 6, 54)), frames = reduced ? 5 : 18;
-    for (var i = 0; i <= frames; i++) {
-      var progress = Math.round(i / frames * 100), rows = [];
-      for (var r = 0; r < 7; r++) {
-        var line = "";
-        for (var col = 0; col < width; col++) line += Math.random() < (1 - i / frames) * .07 ? "+" : " ";
-        rows.push(line);
-      }
-      argFrame = rows.join("\n") + "\n\n  CREATION D'UN SOUVENIR POSITIF\n\n  [" + "=".repeat(Math.floor(progress / 5)) + " ".repeat(20 - Math.floor(progress / 5)) + "] " + progress + "%";
-      draw(); if (i % 3 === 0) beep(392 + i * 16, 110, "sine"); await sleep(reduced ? 160 : 100);
-    }
-    argFrame = "\n\n  UN NOUVEAU SOUVENIR A ETE AJOUTE AUX SAUTS\n\n  " + giftedMemoryDate + "\n\n  Dory a sauvé nos souvenirs [Halloween 2026]";
-    draw(); beep(659.25, 400, "sine"); await sleep(4000);
-    argFrame = "";
-    creer.lines.push({ t: "[ NOUVEAU SOUVENIR AJOUTE AUX SAUTS ]", mask: null, base: "wht" });
-    draw();
+    var d=new Date(),z=function(n){return String(n).padStart(2,"0")};giftedMemoryDate=z(d.getDate())+"/"+z(d.getMonth()+1)+"/"+d.getFullYear();
+    var view=argView,busy=argBusy;scr="db";argFrame="";sq=false;argBusy=true;setBare();fit();
+    var row=DB.filter(function(x){return x.gifted||(x[0]===giftedMemoryDate&&x[1]===FINAL_TITLE)})[0];if(!row){row=[giftedMemoryDate,""];DB.push(row)}
+    row.gifted=true;row.n=false;row[1]="";dbi=DB.indexOf(row);st="NULL-0414 > ce souvenir est le mien. celui où tu m'as libérée.";draw();await sleep(1100);
+    try{for(var i=1;i<=FINAL_TITLE.length;i++){row[1]=FINAL_TITLE.slice(0,i)+(i<FINAL_TITLE.length?"_":"");draw();beep(440,25,"sine");await sleep(reduced?25:65)}row[1]=FINAL_TITLE;MSG[giftedMemoryDate]=FINAL_MSG;draw();await sleep(2200)}
+    finally{row[1]=FINAL_TITLE;scr="arg";argView=view;argBusy=busy;st="";setBare();fit();draw()}
   }
   async function creerRun() {
     try {
@@ -3096,7 +3085,7 @@
         creer.prog = (k + 1) / CHAPTERS.length; creerT = creer.prog;
         creerRestoreEntry(k); creer.fused.push(DB_ORIG[k][1]);
         creerTheme(creerT); creerUpdateSoft();
-        if (k === CHAPTERS.length - 1) await newSouvenirAnimation();
+
         beep(523.25 + k * 30, 260, "sine"); setTimeout(function () { beep(659.25, 300, "sine"); }, 180); draw();
         await sleep(500);
         for (var j = 0; j < ch.r.length; j++) await creerType(ch.r[j], 45);
@@ -3105,6 +3094,7 @@
       document.documentElement.classList.add("nullgrn");
       creer.prog = 1; creerSoft = 1; if (creerSM) creerSM.set(1);
       await creerType("merci.", 60, true); await creerType("je te rends vos souvenirs, ils sont à vous... enfin, à nous toutes.", 50, true); await sleep(1500);
+      await newSouvenirAnimation();
       nullDeparts();
     } catch (e) { creerOn = false; }
   }
@@ -3118,7 +3108,7 @@
     Object.keys(MSG_ORIG).forEach(function (k) { MSG[k] = MSG_ORIG[k]; }); BDAY_MSG = BDAY_ORIG; PH_DEL = {}; alteredDates = [];
     applyFinalEntry();
     root.style.removeProperty("--fg"); root.style.removeProperty("--bg"); root.style.removeProperty("--glow"); root.classList.remove("nullt"); root.classList.add("arg"); root.classList.add("nullgrn");
-    story = 8; argView = null; argFrame = ""; draw();
+    story=8;argStat=0;glitchBurstUntil=0;clearTimeout(sabT);crt.classList.remove("glitchfx","shake","inv");root.classList.remove("arg-screen-buzz");argView=null;argFrame="";draw();
     doraReunion();
   }
   async function doraReunion() {
@@ -3144,13 +3134,13 @@
   }
   function gStr(g) { return g.map(function (r) { return r.join(""); }).join("\n"); }
   async function materialize(id) {
-    var spr = SPR[id], Wg = Math.min(W, 56), Hg = 13, N = reduced ? 5 : 16, x0 = Math.floor((Wg - 7) / 2);
+    var blank=fullScreenNoise(GLITCH_CH,0).split("\n"),spr=SPR[id],Wg=blank[0].length,Hg=blank.length-1,N=reduced?5:20,x0=Math.floor((Wg-7)/2),y0=Math.max(1,Math.floor((Hg-spr.length-4)/2));
     for (var f = 0; f <= N; f++) {
       var g = gNew(Wg, Hg), d = (1 - f / N) * 0.4;
       for (var y = 0; y < Hg; y++) for (var x = 0; x < Wg; x++) if (Math.random() < d) g[y][x] = GLITCH_CH.charAt(Math.random() * GLITCH_CH.length | 0);
       var rows = Math.ceil(f / N * spr.length);
-      gPut(g, x0, 2, spr.slice(0, rows), true);
-      gPut(g, Math.floor((Wg - id.length) / 2), 10, [id], true);
+      gPut(g, x0, y0, spr.slice(0, rows), true);
+      gPut(g, Math.floor((Wg - id.length) / 2), Math.min(Hg-2,y0+spr.length+2), [id], true);
       argFrame = gStr(g); draw(); beep(200 + f * 30, 50, "triangle"); await sleep(reduced ? 150 : 75);
     }
     argFrame = ""; draw();
@@ -3168,6 +3158,10 @@
     if (recalled["DORY-0414"] && recalled["DORA-0414"]) await gameFinale();
     else aPush(id === "DORY-0414" ? "DORY-0414 > rappelle Dora aussi. il t'attend." : "DORA-0414 > Il manque ma Dory, celle de mon univers, DORY-0414. Rappelle-la, s’il te plaît, elle me manque.");
     argBusy = false; draw();
+  }
+  async function nezukoCelebration() {
+    var blank=fullScreenNoise(GLITCH_CH,0).split("\n"),ww=blank[0].length,hh=blank.length-1,dog=[" / \\__","(    @\\___"," /         O","/   (_____/","/_____/   U"],title="NEZUKO // DORA ET DORY SONT RENTRES !",n=reduced?8:36;
+    try{for(var f=0;f<n;f++){var g=gNew(ww,hh),x=Math.max(0,Math.min(ww-13,Math.floor(ww/2-7)+(reduced?0:Math.round(Math.sin(f*.55)*8)))),y=Math.max(1,Math.floor(hh/2-3));gPut(g,x,y,dog,true);gPut(g,Math.max(0,Math.floor((ww-title.length)/2)),Math.max(0,y-3),[title],true);gPut(g,Math.max(0,x-5),y+3,[f%2?"  ~~~":"   ~~"],true);if(f===2||f===12)dogSnd("yipyip");if(f===7||f===22)dogSnd("growl");if(f===17||f===30)dogSnd("wuf");argFrame=gStr(g);draw();await sleep(reduced?650:220)}aPush("NEZUKO > wouf ! grrr... wouf wouf !")}finally{argFrame="";draw()}
   }
   async function gameFinale() {
     story = 10; var sm = null;
@@ -3188,6 +3182,7 @@
     aPush("[ NOUVEAUTES DANS LES OPTIONS : PISTE 4 ARG 2026 ET THEME NULL-0414 ]"); await sleep(3200);
     aPush("[ MESSAGE DU DEVELOPPEUR ]"); await sleep(1800);
     for (var j = 0; j < FINAL_END.length; j++) { aPush("DORA, LE VRAI > " + FINAL_END[j]); await sleep(3200); }
+    await nezukoCelebration();
     aPush("[ FIN DE L'ARG D'HALLOWEEN 2026 ]");
     if (sm) setTimeout(function () { sm.stop(false); }, 20000);
   }
