@@ -2,7 +2,7 @@ name: Apply ARG v4 fixes
 on:
   push:
     branches: [main]
-    paths: [scripts/apply_arg_v4.py, .github/workflows/arg-v4.yml]
+    paths: [scripts/apply_arg_v4.py, scripts/run_arg_v4.py, .github/workflows/arg-v4.yml]
   workflow_dispatch:
 permissions:
   contents: write
@@ -18,7 +18,7 @@ jobs:
         with:
           ref: main
       - name: Patch and check syntax
-        run: python3 scripts/apply_arg_v4.py
+        run: python3 scripts/run_arg_v4.py
       - name: Commit fixes
         run: |
           if git diff --quiet -- js/app.js; then exit 0; fi
