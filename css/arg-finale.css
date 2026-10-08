@@ -1,1 +1,19 @@
 html.arg-creer-fixed #main{width:min(100%,calc(var(--arg-columns,80)*1ch));max-width:none;height:calc(100dvh - 190px);min-height:260px;overflow:auto;margin-top:16px;margin-bottom:auto}.creer-fixed-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:2ch;align-items:start}.creer-fixed-layout.two-columns{grid-template-columns:62ch 44ch;justify-content:center}.creer-fixed-layout>pre{margin:0!important;width:max-content;align-self:start}
+
+/* SAUTS: keep the gallery directly below and aligned with the message frame.
+   --arg-columns is updated by fit() for all screens, not only the ARG. */
+#main > .photos {
+  width: min(100%, calc(var(--arg-columns, 80) * 1ch));
+  max-width: 100%;
+  margin: 16px auto 0;
+  justify-content: center;
+  box-sizing: border-box;
+}
+#main > .photos > figure {
+  min-width: 0;
+  max-width: min(360px, 100%);
+  box-sizing: border-box;
+}
+#main > .photos figcaption {
+  overflow-wrap: anywhere;
+}
