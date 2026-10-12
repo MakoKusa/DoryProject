@@ -552,18 +552,59 @@
     return arrivalSaut&&arrivalSaut[0]===d&&arrivalSaut.entryCaptions?arrivalSaut.entryCaptions:CAP[d];
   }
   function applyCustomSauts() {
-    var selected=DB[dbi],added=false;
-    customSauts.forEach(function(e){
-      var d=DorySauts.displayDate(e.date),row=DB.filter(function(r){return r.custom&&(r.entryId===e.id||(!r.entryId&&r[0]===d))})[0];
-      if(!row){row=[d,e.title];row.custom=true;DB.push(row);added=true}
-      row[0]=d;row[1]=e.title;if(e.time)row[2]=e.time.length===5?e.time+":00":e.time;
-      row.entryId=e.id;row.entryMessage=e.message;row.entryPhotos=e.photos.map(function(p){return p.path});row.entryCaptions=e.photos.map(function(p){return p.caption});
-      MSG[d]=e.message;CAP[d]=row.entryCaptions;customPhotos[d]=row.entryPhotos;
+    var selectedDB = DB[dbi];
+    var added = false;
+    var byDate = Object.create(null);
+
+  DB.forEach(function (row) {
+    if (!row.custom && !row.gifted) byDate[row[0]] = row;
+  });
+
+  customSauts.forEach(function (e) {
+    var d = DorySauts.displayDate(e.date);
+    var row = DB.filter(function (r) {
+      return r.custom && r.entryId === e.id;
+    })[0] || byDate[d];
+
+    if (!row) {
+      row = [d, e.title];
+      row.custom = true;
+      DB.push(row);
+      added = true;
+    }
+
+    row[0] = d;
+    row[1] = e.title;
+    row[2] = e.time ? (e.time.length === 5 ? e.time + ":00" : e.time) : row[2];
+    row.entryId = e.id;
+    row.entryMessage = e.message;
+    row.entryPhotos = e.photos.map(function (p) {
+      return p.path;
     });
-    applyFinalEntry();
-    if(added)DB.sort(function(a,b){return a[0].split("/").reverse().join("-").localeCompare(b[0].split("/").reverse().join("-"))});
-    if(selected&&DB.indexOf(selected)>=0)dbi=DB.indexOf(selected);dbi=Math.max(0,Math.min(dbi,DB.length-1));
+    row.entryCaptions = e.photos.map(function (p) {
+      return p.caption;
+    });
+
+    MSG[d] = e.message;
+    CAP[d] = row.entryCaptions;
+    customPhotos[d] = row.entryPhotos;
+  });
+
+  applyFinalEntry();
+
+  if (added) {
+    DB.sort(function (a, b) {
+      return a[0].split("/").reverse().join("-")
+        .localeCompare(b[0].split("/").reverse().join("-"));
+    });
   }
+
+  if (selectedDB && DB.indexOf(selectedDB) >= 0) {
+    dbi = DB.indexOf(selectedDB);
+  } else {
+    dbi = Math.max(0, Math.min(dbi, DB.length - 1));
+  }
+}  
   async function loadCustomSauts() {
     if (location.protocol === 'file:') { console.info('SAUTS supplémentaires : utiliser un serveur HTTP local ou GitHub Pages.'); return; }
     var controller = new AbortController(), timer = setTimeout(function () { controller.abort(); }, 8000);
