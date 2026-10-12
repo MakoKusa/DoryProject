@@ -1,6 +1,8 @@
 (function (root) {
   "use strict";
-  const RESERVED = ["2025-04-14", "2025-10-17", "2026-03-12", "2026-03-26", "2026-04-16", "2026-04-25", "2026-05-02", "2026-05-14", "2026-06-18", "2026-06-19", "2026-09-19", "2026-09-29"];
+  // Dates encore protegees : anniversaire et lancement du D.O.R.Y PROJECT.
+  // Les dix souvenirs historiques personnels sont desormais geres dans data/sauts.json.
+  const RESERVED = ["2026-09-19", "2026-09-29"];
   function validateDate(value) {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw Error('Date invalide.');
     const [y,m,d]=value.split('-').map(Number), date=new Date(Date.UTC(y,m-1,d));
