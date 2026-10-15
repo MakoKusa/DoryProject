@@ -2080,7 +2080,17 @@
     var L = [{ t: "" }, { t: "*** JOYEUX ANNIVERSAIRE DORY ! ***" }, { t: target.indexOf("23:19") > -1 ? "23:19 : L'HEURE EXACTE !" : "" }, { t: "" }];
     wrap(BDAY_MSG, W - 4).forEach(function (x) { L.push({ t: x, h: alteredDates.indexOf("19/09/2026") >= 0 ? redH(x) : undefined }); });
     L.push({ t: "" }, { t: "ECHAP : RETOUR AU MENU DES SAUTS" });
-    arrival = { html: P(esc(rows.slice(0, 3).join("\n")) + "\n" + box("ANNIVERSAIRE DE DORY", L, W)) + photosBlock("19/09/2026"), d: "19/09/2026" };
+    arrival = 
+      html:
+        '<div class="birthday-screen">' +
+          '<div class="birthday-particles" aria-hidden="true">' +
+            P(esc(rows.slice(0, 3).join("\n"))) +
+          '</div>' +
+          P(box("ANNIVERSAIRE DE DORY", L, W)) +
+        '</div>' +
+        photosBlock("19/09/2026"),
+      d: "19/09/2026"  
+    };
     if (arrivalSaut && arrivalSaut.gifted) arrival.html = finalGreen(arrival.html);
     scr = "arrival"; setBare(); $("main").innerHTML = arrival.html;
     showPhotos("19/09/2026", tk);
