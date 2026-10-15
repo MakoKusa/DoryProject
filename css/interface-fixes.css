@@ -39,3 +39,23 @@ html.viewport-sleep #main > .viewport-sleep-frame {
 .masthead-subtitle { display: block; margin-top: 5px; font-size: .78em; opacity: .8; }
 .masthead-badge { font-size: .75em; border: 1px solid var(--fg); padding: 5px 8px; white-space: nowrap; }
 @media(max-width:700px) { .masthead { padding: 10px; } }
+
+/* Center the birthday wrapper while preserving the ASCII frame spacing. */
+#main > .birthday-screen {
+  flex: 0 0 auto;
+  align-self: center;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-inline: auto;
+  overflow-x: auto;
+  text-align: left;
+}
+#main > .birthday-screen > pre,
+#main > .birthday-screen > .birthday-particles > pre {
+  width: max-content;
+  margin: 0;
+  white-space: pre;
+}
+#main > .birthday-screen > .birthday-particles { margin-bottom: 1em; }
