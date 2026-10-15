@@ -2080,7 +2080,7 @@
     var L = [{ t: "" }, { t: "*** JOYEUX ANNIVERSAIRE DORY ! ***" }, { t: target.indexOf("23:19") > -1 ? "23:19 : L'HEURE EXACTE !" : "" }, { t: "" }];
     wrap(BDAY_MSG, W - 4).forEach(function (x) { L.push({ t: x, h: alteredDates.indexOf("19/09/2026") >= 0 ? redH(x) : undefined }); });
     L.push({ t: "" }, { t: "ECHAP : RETOUR AU MENU DES SAUTS" });
-    arrival = 
+    arrival = {
       html:
         '<div class="birthday-screen">' +
           '<div class="birthday-particles" aria-hidden="true">' +
