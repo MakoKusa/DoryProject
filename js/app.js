@@ -525,6 +525,7 @@
     return new Promise(function (r) { var i = new Image(); i.onload = function () { r(true); }; i.onerror = function () { r(false); }; i.src = url; });
   }
   async function findPhotos(d) {
+    if (PH_DEL[d] && !(arrivalSaut && arrivalSaut[0] === d && arrivalSaut.gifted)) return [];
     if(arrivalSaut&&arrivalSaut[0]===d&&arrivalSaut.entryPhotos)return arrivalSaut.entryPhotos;
     if (customPhotos && Object.prototype.hasOwnProperty.call(customPhotos, d)) return customPhotos[d];
     if (PH_DEL[d]) return [];
@@ -552,59 +553,38 @@
     return arrivalSaut&&arrivalSaut[0]===d&&arrivalSaut.entryCaptions?arrivalSaut.entryCaptions:CAP[d];
   }
   function applyCustomSauts() {
-    var selectedDB = DB[dbi];
-    var added = false;
-    var byDate = Object.create(null);
-
-  DB.forEach(function (row) {
-    if (!row.custom && !row.gifted) byDate[row[0]] = row;
-  });
-
-  customSauts.forEach(function (e) {
-    var d = DorySauts.displayDate(e.date);
-    var row = DB.filter(function (r) {
-      return r.custom && r.entryId === e.id;
-    })[0] || byDate[d];
-
-    if (!row) {
-      row = [d, e.title];
-      row.custom = true;
-      DB.push(row);
-      added = true;
-    }
-
-    row[0] = d;
-    row[1] = e.title;
-    row[2] = e.time ? (e.time.length === 5 ? e.time + ":00" : e.time) : row[2];
-    row.entryId = e.id;
-    row.entryMessage = e.message;
-    row.entryPhotos = e.photos.map(function (p) {
-      return p.path;
+    var selected = DB[dbi], added = false;
+    customSauts.forEach(function (e) {
+      var d = DorySauts.displayDate(e.date);
+      var historical = e.id === "saut-historique-" + e.date && !!NEG[d];
+      // The scenario owns historical rows while NULL is acting, including animations.
+      if (historical && (theme === "null" || (argEntityReturned && story < 8))) return;
+      var row = DB.filter(function (r) {
+        return !r.gifted && (r.entryId === e.id || (historical && !r.custom && r[0] === d));
+      })[0];
+      if (!row) { row = [d, e.title]; row.custom = !historical; DB.push(row); added = true; }
+      row[0] = d; row[1] = e.title;
+      if (e.time) row[2] = e.time.length === 5 ? e.time + ":00" : e.time;
+      row.entryId = e.id;
+      var photos = e.photos.map(function (p) { return p.path; });
+      var captions = e.photos.map(function (p) { return p.caption; });
+      if (historical) {
+        // Legacy scenario code modifies MSG and PH_DEL, not per-entry overrides.
+        row.custom = false;
+        delete row.entryMessage; delete row.entryPhotos; delete row.entryCaptions;
+      } else {
+        row.entryMessage = e.message; row.entryPhotos = photos; row.entryCaptions = captions;
+      }
+      MSG[d] = e.message; CAP[d] = captions; customPhotos[d] = photos;
     });
-    row.entryCaptions = e.photos.map(function (p) {
-      return p.caption;
+    applyFinalEntry();
+    if (added) DB.sort(function (a, b) {
+      return a[0].split("/").reverse().join("-").localeCompare(b[0].split("/").reverse().join("-"));
     });
-
-    MSG[d] = e.message;
-    CAP[d] = row.entryCaptions;
-    customPhotos[d] = row.entryPhotos;
-  });
-
-  applyFinalEntry();
-
-  if (added) {
-    DB.sort(function (a, b) {
-      return a[0].split("/").reverse().join("-")
-        .localeCompare(b[0].split("/").reverse().join("-"));
-    });
-  }
-
-  if (selectedDB && DB.indexOf(selectedDB) >= 0) {
-    dbi = DB.indexOf(selectedDB);
-  } else {
+    if (selected && DB.indexOf(selected) >= 0) dbi = DB.indexOf(selected);
     dbi = Math.max(0, Math.min(dbi, DB.length - 1));
   }
-}  
+
   async function loadCustomSauts() {
     if (location.protocol === 'file:') { console.info('SAUTS supplémentaires : utiliser un serveur HTTP local ou GitHub Pages.'); return; }
     var controller = new AbortController(), timer = setTimeout(function () { controller.abort(); }, 8000);
